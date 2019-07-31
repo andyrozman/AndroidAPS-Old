@@ -25,12 +25,18 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+
 import info.nightscout.androidaps.BuildConfig;
 import info.nightscout.androidaps.MainApp;
 import info.nightscout.androidaps.R;
 import info.nightscout.androidaps.data.DetailedBolusInfo;
 import info.nightscout.androidaps.data.Profile;
 import info.nightscout.androidaps.data.PumpEnactResult;
+import info.nightscout.androidaps.database.BlockingAppRepository;
+import info.nightscout.androidaps.database.entities.Bolus;
+import info.nightscout.androidaps.database.transactions.CancelTemporaryBasalTransaction;
+import info.nightscout.androidaps.database.transactions.InsertTemporaryBasalTransaction;
+import info.nightscout.androidaps.database.transactions.MealBolusTransaction;
 import info.nightscout.androidaps.db.Source;
 import info.nightscout.androidaps.db.TemporaryBasal;
 import info.nightscout.androidaps.events.EventCustomActionsChanged;
@@ -844,7 +850,19 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
                     }).start();
                 }
 
-                TreatmentsPlugin.getPlugin().addToHistoryTreatment(detailedBolusInfo, true);
+                try {
+
+                    BlockingAppRepository.INSTANCE.runTransactionForResult(new MealBolusTransaction(
+                            System.currentTimeMillis(),
+                            detailedBolusInfo.insulin,
+                            detailedBolusInfo.carbs,
+                            detailedBolusInfo.isSMB ? Bolus.Type.SMB : Bolus.Type.NORMAL,
+                            0, null
+                    ));
+
+                } catch(Exception ex) {
+                    LOG.error("Adding treatment record failed ({}). ", ex.getMessage(), ex);
+                }
 
                 // we subtract insulin, exact amount will be visible with next remainingInsulin update.
                 getMDTPumpStatus().reservoirRemainingUnits -= detailedBolusInfo.insulin;
@@ -989,6 +1007,17 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
             if (response) {
                 if (isLoggingEnabled())
                     LOG.info(getLogPrefix() + "setTempBasalAbsolute - Current TBR cancelled.");
+
+                try {
+
+                    BlockingAppRepository.INSTANCE.runTransactionForResult(new CancelTemporaryBasalTransaction(
+                            System.currentTimeMillis()
+                    ));
+
+                } catch(Exception ex) {
+                    LOG.error("Adding CancelTemporaryBasal record failed ({}). ", ex.getMessage(), ex);
+                }
+
             } else {
                 if (isLoggingEnabled())
                     LOG.error(getLogPrefix() + "setTempBasalAbsolute - Cancel TBR failed.");
@@ -1015,13 +1044,18 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
             pumpStatusLocal.tempBasalAmount = absoluteRate;
             pumpStatusLocal.tempBasalLength = durationInMinutes;
 
-            TemporaryBasal tempStart = new TemporaryBasal() //
-                    .date(System.currentTimeMillis()) //
-                    .duration(durationInMinutes) //
-                    .absolute(absoluteRate) //
-                    .source(Source.USER);
+            try {
 
-            TreatmentsPlugin.getPlugin().addToHistoryTempBasal(tempStart);
+                BlockingAppRepository.INSTANCE.runTransactionForResult(new InsertTemporaryBasalTransaction(
+                        System.currentTimeMillis(),
+                        durationInMinutes,
+                        true,
+                        absoluteRate
+                ));
+
+            } catch(Exception ex) {
+                LOG.error("Adding InsertTemporaryBasal record failed ({}). ", ex.getMessage(), ex);
+            }
 
             incrementStatistics(MedtronicConst.Statistics.TBRsSet);
 
@@ -1356,12 +1390,15 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
             if (isLoggingEnabled())
                 LOG.info(getLogPrefix() + "cancelTempBasal - Cancel TBR successful.");
 
-            TemporaryBasal tempBasal = new TemporaryBasal() //
-                    .date(System.currentTimeMillis()) //
-                    .duration(0) //
-                    .source(Source.USER);
+            try {
 
-            TreatmentsPlugin.getPlugin().addToHistoryTempBasal(tempBasal);
+                BlockingAppRepository.INSTANCE.runTransactionForResult(new CancelTemporaryBasalTransaction(
+                        System.currentTimeMillis()
+                ));
+
+            } catch(Exception ex) {
+                LOG.error("Adding CancelTemporaryBasal record failed ({}). ", ex.getMessage(), ex);
+            }
 
             return new PumpEnactResult().success(true).enacted(true) //
                     .isTempCancel(true);
