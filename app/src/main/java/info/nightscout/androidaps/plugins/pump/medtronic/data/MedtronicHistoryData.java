@@ -742,6 +742,7 @@ public class MedtronicHistoryData {
 
     private List<? extends DbObjectBase> getDatabaseEntriesByLastTimestamp(long startTimestamp, ProcessHistoryRecord processHistoryRecord) {
         if (processHistoryRecord == ProcessHistoryRecord.Bolus) {
+            // TODO
             return TreatmentsPlugin.getPlugin().getTreatmentsFromHistoryAfterTimestamp(startTimestamp);
         } else {
             return databaseHelper.getTemporaryBasalsDataFromTime(startTimestamp, true);
