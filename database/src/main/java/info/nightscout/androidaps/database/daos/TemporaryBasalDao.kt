@@ -25,4 +25,8 @@ abstract class TemporaryBasalDao : BaseDao<TemporaryBasal>() {
 
     @Query("SELECT * FROM $TABLE_TEMPORARY_BASALS WHERE timestamp <= :timestamp AND (timestamp + duration) > :timestamp AND referenceId IS NULL AND valid = 1 ORDER BY timestamp DESC LIMIT 1")
     abstract fun getTemporaryBasalActiveAt(timestamp: Long): TemporaryBasal?
+
+    @Query("SELECT * FROM $TABLE_TEMPORARY_BASALS WHERE pumpType = :pumpType AND pumpSerial = :pumpSerial  and timestamp <= :timestamp AND (timestamp + duration) > :timestamp ORDER BY timestamp DESC LIMIT 1")
+    abstract fun getTemporaryBasalActiveAtForPump(timestamp: Long, pumpType: InterfaceIDs.PumpType, pumpSerial: String): TemporaryBasal?
+
 }

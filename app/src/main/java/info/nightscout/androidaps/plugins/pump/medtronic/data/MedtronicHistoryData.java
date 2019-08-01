@@ -667,6 +667,8 @@ public class MedtronicHistoryData {
 
     private TemporaryBasal findTempBasalWithPumpId(long pumpId, List<? extends DbObjectBase> entriesFromHistory) {
 
+        //TODO: Fix Medtronic driver
+
         for (DbObjectBase dbObjectBase : entriesFromHistory) {
             TemporaryBasal tbr = (TemporaryBasal) dbObjectBase;
 
@@ -691,6 +693,7 @@ public class MedtronicHistoryData {
      * @return DbObject from AAPS (if found)
      */
     private DbObjectBase findDbEntry(PumpHistoryEntry treatment, List<? extends DbObjectBase> entriesFromHistory) {
+        //TODO: Fix Medtronic driver
 
         long proposedTime = DateTimeUtil.toMillisFromATD(treatment.atechDateTime);
 
@@ -742,9 +745,10 @@ public class MedtronicHistoryData {
 
     private List<? extends DbObjectBase> getDatabaseEntriesByLastTimestamp(long startTimestamp, ProcessHistoryRecord processHistoryRecord) {
         if (processHistoryRecord == ProcessHistoryRecord.Bolus) {
-            // TODO
+            //TODO: Fix Medtronic driver
             return TreatmentsPlugin.getPlugin().getTreatmentsFromHistoryAfterTimestamp(startTimestamp);
         } else {
+            //TODO: Fix Medtronic driver
             return databaseHelper.getTemporaryBasalsDataFromTime(startTimestamp, true);
         }
     }
@@ -799,6 +803,7 @@ public class MedtronicHistoryData {
 
                     addCarbsFromEstimate(detailedBolusInfo, bolus);
 
+                    //TODO: Fix Medtronic driver
                     boolean newRecord = TreatmentsPlugin.getPlugin().addToHistoryTreatment(detailedBolusInfo, false);
 
                     bolus.setLinkedObject(detailedBolusInfo);
@@ -821,6 +826,7 @@ public class MedtronicHistoryData {
 
                     bolus.setLinkedObject(extendedBolus);
 
+                    //TODO: Fix Medtronic driver
                     TreatmentsPlugin.getPlugin().addToHistoryExtendedBolus(extendedBolus);
 
                     if (isLogEnabled())
@@ -846,6 +852,7 @@ public class MedtronicHistoryData {
 
             addCarbsFromEstimate(detailedBolusInfo, bolus);
 
+            //TODO: Fix Medtronic driver
             boolean newRecord = TreatmentsPlugin.getPlugin().addToHistoryTreatment(detailedBolusInfo, false);
 
             bolus.setLinkedObject(detailedBolusInfo);

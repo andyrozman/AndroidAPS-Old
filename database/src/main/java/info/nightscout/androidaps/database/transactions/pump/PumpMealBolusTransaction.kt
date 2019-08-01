@@ -10,13 +10,13 @@ import info.nightscout.androidaps.database.transactions.Transaction
 import java.util.*
 
 class PumpMealBolusTransaction(
-        val pumpSerial: String,
         val timestamp: Long,
         val insulin: Double,
         val carbs: Double,
         val type: Bolus.Type,
-        pumpId: Int,
         val pumpType: InterfaceIDs.PumpType,
+        val pumpSerial: String,
+        pumpId: Int = 0,
         val bolusCalculatorResult: MealBolusTransaction.BolusCalculatorResult?
 ) : Transaction<Unit>() {
 

@@ -33,10 +33,14 @@ import info.nightscout.androidaps.data.DetailedBolusInfo;
 import info.nightscout.androidaps.data.Profile;
 import info.nightscout.androidaps.data.PumpEnactResult;
 import info.nightscout.androidaps.database.BlockingAppRepository;
+import info.nightscout.androidaps.database.embedments.InterfaceIDs;
 import info.nightscout.androidaps.database.entities.Bolus;
 import info.nightscout.androidaps.database.transactions.CancelTemporaryBasalTransaction;
 import info.nightscout.androidaps.database.transactions.InsertTemporaryBasalTransaction;
 import info.nightscout.androidaps.database.transactions.MealBolusTransaction;
+import info.nightscout.androidaps.database.transactions.pump.PumpCancelTemporaryBasalTransaction;
+import info.nightscout.androidaps.database.transactions.pump.PumpInsertTemporaryBasalTransaction;
+import info.nightscout.androidaps.database.transactions.pump.PumpMealBolusTransaction;
 import info.nightscout.androidaps.db.Source;
 import info.nightscout.androidaps.db.TemporaryBasal;
 import info.nightscout.androidaps.events.EventCustomActionsChanged;
@@ -852,12 +856,15 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
 
                 try {
 
-                    BlockingAppRepository.INSTANCE.runTransactionForResult(new MealBolusTransaction(
+                    BlockingAppRepository.INSTANCE.runTransactionForResult(new PumpMealBolusTransaction(
                             System.currentTimeMillis(),
                             detailedBolusInfo.insulin,
                             detailedBolusInfo.carbs,
                             detailedBolusInfo.isSMB ? Bolus.Type.SMB : Bolus.Type.NORMAL,
-                            0, null
+                            InterfaceIDs.PumpType.MEDTRONIC,
+                            serialNumber(),
+                            0,
+                            null
                     ));
 
                 } catch(Exception ex) {
@@ -1010,8 +1017,10 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
 
                 try {
 
-                    BlockingAppRepository.INSTANCE.runTransactionForResult(new CancelTemporaryBasalTransaction(
-                            System.currentTimeMillis()
+                    BlockingAppRepository.INSTANCE.runTransactionForResult(new PumpCancelTemporaryBasalTransaction(
+                            System.currentTimeMillis(),
+                            InterfaceIDs.PumpType.MEDTRONIC,
+                            serialNumber()
                     ));
 
                 } catch(Exception ex) {
@@ -1046,11 +1055,14 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
 
             try {
 
-                BlockingAppRepository.INSTANCE.runTransactionForResult(new InsertTemporaryBasalTransaction(
+                BlockingAppRepository.INSTANCE.runTransactionForResult(new PumpInsertTemporaryBasalTransaction(
                         System.currentTimeMillis(),
                         durationInMinutes,
                         true,
-                        absoluteRate
+                        absoluteRate,
+                        InterfaceIDs.PumpType.MEDTRONIC,
+                        serialNumber(),
+                        0
                 ));
 
             } catch(Exception ex) {
@@ -1392,8 +1404,10 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
 
             try {
 
-                BlockingAppRepository.INSTANCE.runTransactionForResult(new CancelTemporaryBasalTransaction(
-                        System.currentTimeMillis()
+                BlockingAppRepository.INSTANCE.runTransactionForResult(new PumpCancelTemporaryBasalTransaction(
+                        System.currentTimeMillis(),
+                        InterfaceIDs.PumpType.MEDTRONIC,
+                        serialNumber()
                 ));
 
             } catch(Exception ex) {
