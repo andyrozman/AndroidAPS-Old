@@ -5,6 +5,7 @@ import androidx.room.Query
 import info.nightscout.androidaps.database.TABLE_BOLUSES
 import info.nightscout.androidaps.database.embedments.InterfaceIDs
 import info.nightscout.androidaps.database.entities.Bolus
+import io.reactivex.Flowable
 
 @Suppress("FunctionName")
 @Dao
@@ -27,4 +28,8 @@ abstract class BolusDao : BaseDao<Bolus>() {
 
     @Query("SELECT * FROM $TABLE_BOLUSES WHERE timestamp >= :start AND timestamp <= :end AND referenceId IS NULL AND valid = 1 ORDER BY timestamp ASC")
     abstract fun getBolusesInTimeRange(start: Long, end: Long): List<Bolus>
+
+    @Query("SELECT * FROM $TABLE_BOLUSES WHERE timestamp >= :start AND referenceId IS NULL AND pumpType = :pumpType AND pumpSerial = :pumpSerial AND valid = 1 ORDER BY timestamp ASC")
+    abstract fun getBolusesStartingWithTimeForPump(start: Long, pumpType: InterfaceIDs.PumpType, pumpSerial: Long): Flowable<List<Bolus>>
+
 }

@@ -203,6 +203,7 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
             LOG.debug("initPumpStatusData: {}", this.pumpStatusLocal);
 
         this.pumpStatus = pumpStatusLocal;
+        medtronicHistoryData.setPumpStatusObject(pumpStatusLocal);
 
         // this is only thing that can change, by being configured
         pumpDescription.maxTempAbsolute = (pumpStatusLocal.maxBasal != null) ? pumpStatusLocal.maxBasal : 35.0d;
@@ -856,11 +857,19 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
 
                 try {
 
+                    Bolus.Type bolusType;
+                    if (!detailedBolusInfo.isValid)
+                        bolusType = Bolus.Type.PRIMING;
+                    else if (detailedBolusInfo.isSMB)
+                        bolusType = Bolus.Type.SMB;
+                    else
+                        bolusType = Bolus.Type.NORMAL;
+
                     BlockingAppRepository.INSTANCE.runTransactionForResult(new PumpMealBolusTransaction(
                             System.currentTimeMillis(),
                             detailedBolusInfo.insulin,
                             detailedBolusInfo.carbs,
-                            detailedBolusInfo.isSMB ? Bolus.Type.SMB : Bolus.Type.NORMAL,
+                            bolusType,
                             InterfaceIDs.PumpType.MEDTRONIC,
                             serialNumber(),
                             0,

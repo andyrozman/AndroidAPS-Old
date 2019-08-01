@@ -2,6 +2,7 @@ package info.nightscout.androidaps.database
 
 import android.content.Context
 import androidx.room.Room
+import info.nightscout.androidaps.database.embedments.InterfaceIDs
 import info.nightscout.androidaps.database.entities.*
 import info.nightscout.androidaps.database.interfaces.DBEntry
 import info.nightscout.androidaps.database.transactions.MergedBolus
@@ -75,6 +76,8 @@ object AppRepository {
     fun getProfileSwitchesInTimeRange(start: Long, end: Long): Flowable<List<ProfileSwitch>> = database.profileSwitchDao.getProfileSwitchesInTimeRange(start, end).subscribeOn(Schedulers.io())
 
     fun getAllProfileSwitches(): Flowable<List<ProfileSwitch>> = database.profileSwitchDao.getAllProfileSwitches().subscribeOn(Schedulers.io())
+
+    fun getBolusesFromTimeForPump(startTimestamp: Long, pumpType: InterfaceIDs.PumpType, pumpSerial: Long) : Flowable<List<Bolus>> = database.bolusDao.getBolusesStartingWithTimeForPump(startTimestamp, pumpType, pumpSerial).subscribeOn(Schedulers.io())
 
     fun getMergedBolusData(start: Long, end: Long) = Single.fromCallable {
         val boluses = database.bolusDao.getBolusesInTimeRange(start, end)

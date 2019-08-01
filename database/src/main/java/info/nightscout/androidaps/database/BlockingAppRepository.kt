@@ -1,5 +1,6 @@
 package info.nightscout.androidaps.database
 
+import info.nightscout.androidaps.database.embedments.InterfaceIDs
 import info.nightscout.androidaps.database.entities.*
 import info.nightscout.androidaps.database.transactions.MergedBolus
 import info.nightscout.androidaps.database.transactions.Transaction
@@ -43,4 +44,6 @@ object BlockingAppRepository {
     fun getProfileSwitchesInTimeRange(start: Long, end: Long): List<ProfileSwitch> = AppRepository.getProfileSwitchesInTimeRange(start, end).blockingFirst()
 
     fun getAllProfileSwitches(): List<ProfileSwitch> = AppRepository.getAllProfileSwitches().blockingFirst()
+
+    fun getBolusesFromTimeForPump(startTimestamp: Long, pumpType: InterfaceIDs.PumpType, pumpSerial: Long): List<Bolus> = AppRepository.getBolusesFromTimeForPump(startTimestamp, pumpType, pumpSerial).blockingFirst()
 }

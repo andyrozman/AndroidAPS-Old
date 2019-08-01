@@ -20,6 +20,14 @@ import java.util.Map;
 
 import info.nightscout.androidaps.MainApp;
 import info.nightscout.androidaps.data.DetailedBolusInfo;
+import info.nightscout.androidaps.database.AppDatabase;
+import info.nightscout.androidaps.database.AppDatabase_Impl;
+import info.nightscout.androidaps.database.AppRepository;
+import info.nightscout.androidaps.database.BlockingAppRepository;
+import info.nightscout.androidaps.database.embedments.InterfaceIDs;
+import info.nightscout.androidaps.database.entities.Bolus;
+import info.nightscout.androidaps.database.interfaces.DBEntry;
+import info.nightscout.androidaps.database.interfaces.DBEntryWithTime;
 import info.nightscout.androidaps.db.DatabaseHelper;
 import info.nightscout.androidaps.db.DbObjectBase;
 import info.nightscout.androidaps.db.ExtendedBolus;
@@ -46,6 +54,9 @@ import info.nightscout.androidaps.plugins.pump.medtronic.util.MedtronicUtil;
 import info.nightscout.androidaps.plugins.treatments.Treatment;
 import info.nightscout.androidaps.plugins.treatments.TreatmentsPlugin;
 import info.nightscout.androidaps.utils.SP;
+import io.reactivex.Flowable;
+
+import static info.nightscout.androidaps.database.AppRepository.database;
 
 
 /**
@@ -75,6 +86,7 @@ public class MedtronicHistoryData {
     private ClockDTO pumpTime;
 
     private long lastIdUsed = 0;
+    private MedtronicPumpStatus pumpStatus;
 
 
     public MedtronicHistoryData() {
@@ -495,6 +507,10 @@ public class MedtronicHistoryData {
         */
     }
 
+    public void setPumpStatusObject(MedtronicPumpStatus pumpStatusLocal) {
+        pumpStatus = pumpStatusLocal;
+    }
+
 
     private enum ProcessHistoryRecord {
         Bolus("Bolus"),
@@ -518,7 +534,7 @@ public class MedtronicHistoryData {
 
         long oldestTimestamp = getOldestTimestamp(entryList);
 
-        List<? extends DbObjectBase> entriesFromHistory = getDatabaseEntriesByLastTimestamp(oldestTimestamp, ProcessHistoryRecord.Bolus);
+        List<? extends DBEntryWithTime> entriesFromHistory = getDatabaseEntriesByLastTimestamp(oldestTimestamp, ProcessHistoryRecord.Bolus);
 
 //        LOG.debug(processHistoryRecord.getDescription() + " List (before filter): {}, FromDb={}", gsonPretty.toJson(entryList),
 //                gsonPretty.toJson(entriesFromHistory));
@@ -540,7 +556,7 @@ public class MedtronicHistoryData {
             }
         } else {
             for (PumpHistoryEntry treatment : entryList) {
-                DbObjectBase treatmentDb = findDbEntry(treatment, entriesFromHistory);
+                DBEntry treatmentDb = findDbEntry(treatment, entriesFromHistory);
                 if (isLogEnabled())
                     LOG.debug("Add Bolus {} - (entryFromDb={}) ", treatment, treatmentDb);
 
@@ -571,7 +587,7 @@ public class MedtronicHistoryData {
 
         long oldestTimestamp = getOldestTimestamp(entryList);
 
-        List<? extends DbObjectBase> entriesFromHistory = getDatabaseEntriesByLastTimestamp(oldestTimestamp, ProcessHistoryRecord.TBR);
+        List<? extends DBEntry> entriesFromHistory = getDatabaseEntriesByLastTimestamp(oldestTimestamp, ProcessHistoryRecord.TBR);
 
         if (isLogEnabled())
             LOG.debug(ProcessHistoryRecord.TBR.getDescription() + " List (before filter): {}, FromDb={}", gson.toJson(entryList),
@@ -665,11 +681,11 @@ public class MedtronicHistoryData {
     }
 
 
-    private TemporaryBasal findTempBasalWithPumpId(long pumpId, List<? extends DbObjectBase> entriesFromHistory) {
+    private TemporaryBasal findTempBasalWithPumpId(long pumpId, List<? extends DBEntry> entriesFromHistory) {
 
         //TODO: Fix Medtronic driver
 
-        for (DbObjectBase dbObjectBase : entriesFromHistory) {
+        for (DBEntry dbObjectBase : entriesFromHistory) {
             TemporaryBasal tbr = (TemporaryBasal) dbObjectBase;
 
             if (tbr.pumpId == pumpId) {
@@ -692,7 +708,7 @@ public class MedtronicHistoryData {
      *
      * @return DbObject from AAPS (if found)
      */
-    private DbObjectBase findDbEntry(PumpHistoryEntry treatment, List<? extends DbObjectBase> entriesFromHistory) {
+    private DBEntryWithTime findDbEntry(PumpHistoryEntry treatment, List<? extends DBEntryWithTime> entriesFromHistory) {
         //TODO: Fix Medtronic driver
 
         long proposedTime = DateTimeUtil.toMillisFromATD(treatment.atechDateTime);
@@ -715,11 +731,11 @@ public class MedtronicHistoryData {
 
                 int diff = (sec * 1000);
 
-                List<DbObjectBase> outList = new ArrayList<>();
+                List<DBEntryWithTime> outList = new ArrayList<>();
 
-                for (DbObjectBase treatment1 : entriesFromHistory) {
+                for (DBEntryWithTime treatment1 : entriesFromHistory) {
 
-                    if ((treatment1.getDate() > proposedTime - diff) && (treatment1.getDate() < proposedTime + diff)) {
+                    if ((treatment1.getTimestamp() > proposedTime - diff) && (treatment1.getTimestamp() < proposedTime + diff)) {
                         outList.add(treatment1);
                     }
                 }
@@ -743,32 +759,33 @@ public class MedtronicHistoryData {
     }
 
 
-    private List<? extends DbObjectBase> getDatabaseEntriesByLastTimestamp(long startTimestamp, ProcessHistoryRecord processHistoryRecord) {
+    private List<? extends DBEntryWithTime> getDatabaseEntriesByLastTimestamp(long startTimestamp, ProcessHistoryRecord processHistoryRecord) {
         if (processHistoryRecord == ProcessHistoryRecord.Bolus) {
-            //TODO: Fix Medtronic driver
-            return TreatmentsPlugin.getPlugin().getTreatmentsFromHistoryAfterTimestamp(startTimestamp);
+            // TODO: maybe ok
+            return BlockingAppRepository.INSTANCE.getBolusesFromTimeForPump(startTimestamp, InterfaceIDs.PumpType.MEDTRONIC, Integer.parseInt(pumpStatus.serialNumber));
         } else {
             //TODO: Fix Medtronic driver
-            return databaseHelper.getTemporaryBasalsDataFromTime(startTimestamp, true);
+            //return databaseHelper.getTemporaryBasalsDataFromTime(startTimestamp, true);
+            return null;
         }
     }
 
 
-    private void filterOutAlreadyAddedEntries(List<PumpHistoryEntry> entryList, List<? extends DbObjectBase> treatmentsFromHistory) {
+    private void filterOutAlreadyAddedEntries(List<PumpHistoryEntry> entryList, List<? extends DBEntry> treatmentsFromHistory) {
 
         if (isCollectionEmpty(treatmentsFromHistory))
             return;
 
-        List<DbObjectBase> removeTreatmentsFromHistory = new ArrayList<>();
+        List<DBEntry> removeTreatmentsFromHistory = new ArrayList<>();
 
-        for (DbObjectBase treatment : treatmentsFromHistory) {
+        for (DBEntry treatment : treatmentsFromHistory) {
 
-            if (treatment.getPumpId() != 0) {
+            if (treatment.getInterfaceIDs().getPumpId() != 0) {
 
                 PumpHistoryEntry selectedBolus = null;
 
                 for (PumpHistoryEntry bolus : entryList) {
-                    if (bolus.getPumpId() == treatment.getPumpId()) {
+                    if (bolus.getPumpId() == treatment.getInterfaceIDs().getPumpId()) {
                         selectedBolus = bolus;
                         break;
                     }
