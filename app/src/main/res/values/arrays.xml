@@ -179,6 +179,7 @@
         <item>@string/medtronic_pump_battery_no</item>
         <item>@string/medtronic_pump_battery_alkaline</item>
         <item>@string/medtronic_pump_battery_lithium</item>
+        <item>@string/medtronic_pump_battery_nizn</item>
     </string-array>
 
 </resources>
