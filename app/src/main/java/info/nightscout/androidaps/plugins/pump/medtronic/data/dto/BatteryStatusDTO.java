@@ -38,7 +38,8 @@ public class BatteryStatusDTO {
         return String.format("BatteryStatusDTO [voltage=%.2f, alkaline=%d, lithium=%d]",
                 voltage == null ? 0.0f : voltage,
                 getCalculatedPercent(BatteryType.Alkaline),
-                getCalculatedPercent(BatteryType.Lithium));
+                getCalculatedPercent(BatteryType.Lithium),
+                getCalculatedPercent(BatteryType.NiZn));
     }
 
 
