@@ -9,18 +9,16 @@ import info.nightscout.androidaps.database.transactions.MealBolusTransaction
 import info.nightscout.androidaps.database.transactions.Transaction
 import java.util.*
 
-class PumpMealBolusTransaction(
+class PumpInsertMealBolusTransaction(
         val timestamp: Long,
         val insulin: Double,
         val carbs: Double,
         val type: Bolus.Type,
         val pumpType: InterfaceIDs.PumpType,
         val pumpSerial: String,
-        pumpId: Int = 0,
+        var pumpId: Long = 0,
         val bolusCalculatorResult: MealBolusTransaction.BolusCalculatorResult?
 ) : Transaction<Unit>() {
-
-    val pumpId = pumpId.toLong()
 
     override fun run() {
         val utcOffset = TimeZone.getDefault().getOffset(timestamp).toLong()

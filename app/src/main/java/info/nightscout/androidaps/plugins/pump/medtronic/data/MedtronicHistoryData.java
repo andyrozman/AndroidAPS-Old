@@ -20,16 +20,14 @@ import java.util.Map;
 
 import info.nightscout.androidaps.MainApp;
 import info.nightscout.androidaps.data.DetailedBolusInfo;
-import info.nightscout.androidaps.database.AppDatabase;
-import info.nightscout.androidaps.database.AppDatabase_Impl;
-import info.nightscout.androidaps.database.AppRepository;
 import info.nightscout.androidaps.database.BlockingAppRepository;
 import info.nightscout.androidaps.database.embedments.InterfaceIDs;
 import info.nightscout.androidaps.database.entities.Bolus;
 import info.nightscout.androidaps.database.interfaces.DBEntry;
 import info.nightscout.androidaps.database.interfaces.DBEntryWithTime;
+import info.nightscout.androidaps.database.transactions.pump.PumpExtendedBolusTransaction;
+import info.nightscout.androidaps.database.transactions.pump.PumpInsertMealBolusTransaction;
 import info.nightscout.androidaps.db.DatabaseHelper;
-import info.nightscout.androidaps.db.DbObjectBase;
 import info.nightscout.androidaps.db.ExtendedBolus;
 import info.nightscout.androidaps.db.Source;
 import info.nightscout.androidaps.db.TDD;
@@ -54,9 +52,6 @@ import info.nightscout.androidaps.plugins.pump.medtronic.util.MedtronicUtil;
 import info.nightscout.androidaps.plugins.treatments.Treatment;
 import info.nightscout.androidaps.plugins.treatments.TreatmentsPlugin;
 import info.nightscout.androidaps.utils.SP;
-import io.reactivex.Flowable;
-
-import static info.nightscout.androidaps.database.AppRepository.database;
 
 
 /**
@@ -144,6 +139,11 @@ public class MedtronicHistoryData {
 
     public List<PumpHistoryEntry> getAllHistory() {
         return this.allHistory;
+    }
+
+
+    private String getPumpSerial() {
+        return pumpStatus.serialNumber;
     }
 
 
@@ -556,7 +556,7 @@ public class MedtronicHistoryData {
             }
         } else {
             for (PumpHistoryEntry treatment : entryList) {
-                DBEntry treatmentDb = findDbEntry(treatment, entriesFromHistory);
+                DBEntryWithTime treatmentDb = findDbEntry(treatment, entriesFromHistory);
                 if (isLogEnabled())
                     LOG.debug("Add Bolus {} - (entryFromDb={}) ", treatment, treatmentDb);
 
@@ -587,7 +587,7 @@ public class MedtronicHistoryData {
 
         long oldestTimestamp = getOldestTimestamp(entryList);
 
-        List<? extends DBEntry> entriesFromHistory = getDatabaseEntriesByLastTimestamp(oldestTimestamp, ProcessHistoryRecord.TBR);
+        List<? extends DBEntryWithTime> entriesFromHistory = getDatabaseEntriesByLastTimestamp(oldestTimestamp, ProcessHistoryRecord.TBR);
 
         if (isLogEnabled())
             LOG.debug(ProcessHistoryRecord.TBR.getDescription() + " List (before filter): {}, FromDb={}", gson.toJson(entryList),
@@ -660,12 +660,12 @@ public class MedtronicHistoryData {
                     TemporaryBasal tempBasal = findTempBasalWithPumpId(tempBasalProcessDTO.itemOne.getPumpId(), entriesFromHistory);
 
                     if (tempBasal == null) {
-                        DbObjectBase treatmentDb = findDbEntry(treatment, entriesFromHistory);
+                        DBEntryWithTime treatmentDb = findDbEntry(treatment, entriesFromHistory);
 
                         if (isLogEnabled())
                             LOG.debug("Add " + ProcessHistoryRecord.TBR.getDescription() + " {} - (entryFromDb={}) ", treatment, treatmentDb);
 
-                        addTBR(treatment, (TemporaryBasal) treatmentDb);
+                        addTBR(treatment, (info.nightscout.androidaps.database.entities.TemporaryBasal) treatmentDb);
                     } else {
                         // this shouldn't happen
                         if (tempBasal.durationInMinutes != tempBasalProcessDTO.getDuration()) {
@@ -771,14 +771,14 @@ public class MedtronicHistoryData {
     }
 
 
-    private void filterOutAlreadyAddedEntries(List<PumpHistoryEntry> entryList, List<? extends DBEntry> treatmentsFromHistory) {
+    private void filterOutAlreadyAddedEntries(List<PumpHistoryEntry> entryList, List<? extends DBEntryWithTime> treatmentsFromHistory) {
 
         if (isCollectionEmpty(treatmentsFromHistory))
             return;
 
         List<DBEntry> removeTreatmentsFromHistory = new ArrayList<>();
 
-        for (DBEntry treatment : treatmentsFromHistory) {
+        for (DBEntryWithTime treatment : treatmentsFromHistory) {
 
             if (treatment.getInterfaceIDs().getPumpId() != 0) {
 
@@ -820,14 +820,22 @@ public class MedtronicHistoryData {
 
                     addCarbsFromEstimate(detailedBolusInfo, bolus);
 
-                    //TODO: Fix Medtronic driver
-                    boolean newRecord = TreatmentsPlugin.getPlugin().addToHistoryTreatment(detailedBolusInfo, false);
-
                     bolus.setLinkedObject(detailedBolusInfo);
+
+                    BlockingAppRepository.INSTANCE.runTransactionForResult(new PumpInsertMealBolusTransaction(
+                            tryToGetByLocalTime(bolus.atechDateTime),
+                            bolusDTO.getDeliveredAmount(),
+                            detailedBolusInfo.carbs,
+                            Bolus.Type.NORMAL,
+                            InterfaceIDs.PumpType.MEDTRONIC,
+                            getPumpSerial(),
+                            bolus.getPumpId(),
+                            null
+                    ));
 
                     if (isLogEnabled())
                         LOG.debug("addBolus - [date={},pumpId={}, insulin={}, newRecord={}]", detailedBolusInfo.date,
-                                detailedBolusInfo.pumpId, detailedBolusInfo.insulin, newRecord);
+                                detailedBolusInfo.pumpId, detailedBolusInfo.insulin, detailedBolusInfo);
                 }
                 break;
 
@@ -843,8 +851,16 @@ public class MedtronicHistoryData {
 
                     bolus.setLinkedObject(extendedBolus);
 
-                    //TODO: Fix Medtronic driver
-                    TreatmentsPlugin.getPlugin().addToHistoryExtendedBolus(extendedBolus);
+                    BlockingAppRepository.INSTANCE.runTransactionForResult(new PumpExtendedBolusTransaction(
+                            tryToGetByLocalTime(bolus.atechDateTime),
+                            bolusDTO.getDeliveredAmount(),
+                            0L,
+                            bolusDTO.getDuration(),
+                            false,
+                            InterfaceIDs.PumpType.MEDTRONIC,
+                            getPumpSerial(),
+                            bolus.getPumpId()
+                    ));
 
                     if (isLogEnabled())
                         LOG.debug("addBolus - Extended [date={},pumpId={}, insulin={}, duration={}]", extendedBolus.date,
@@ -893,15 +909,15 @@ public class MedtronicHistoryData {
     }
 
 
-    private void addTBR(PumpHistoryEntry treatment, TemporaryBasal temporaryBasalDbInput) {
+    private void addTBR(PumpHistoryEntry treatment, info.nightscout.androidaps.database.entities.TemporaryBasal temporaryBasalDbInput) {
 
         TempBasalPair tbr = (TempBasalPair) treatment.getDecodedData().get("Object");
 
-        TemporaryBasal temporaryBasalDb = temporaryBasalDbInput;
+        info.nightscout.androidaps.database.entities.TemporaryBasal temporaryBasalDb = temporaryBasalDbInput;
         String operation = "editTBR";
 
         if (temporaryBasalDb == null) {
-            temporaryBasalDb = new TemporaryBasal();
+            temporaryBasalDb = new info.nightscout.androidaps.database.entities.TemporaryBasal();
             temporaryBasalDb.date = tryToGetByLocalTime(treatment.atechDateTime);
 
             operation = "addTBR";

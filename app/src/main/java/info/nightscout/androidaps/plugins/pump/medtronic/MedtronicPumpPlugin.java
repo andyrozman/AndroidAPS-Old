@@ -35,14 +35,9 @@ import info.nightscout.androidaps.data.PumpEnactResult;
 import info.nightscout.androidaps.database.BlockingAppRepository;
 import info.nightscout.androidaps.database.embedments.InterfaceIDs;
 import info.nightscout.androidaps.database.entities.Bolus;
-import info.nightscout.androidaps.database.transactions.CancelTemporaryBasalTransaction;
-import info.nightscout.androidaps.database.transactions.InsertTemporaryBasalTransaction;
-import info.nightscout.androidaps.database.transactions.MealBolusTransaction;
 import info.nightscout.androidaps.database.transactions.pump.PumpCancelTemporaryBasalTransaction;
 import info.nightscout.androidaps.database.transactions.pump.PumpInsertTemporaryBasalTransaction;
-import info.nightscout.androidaps.database.transactions.pump.PumpMealBolusTransaction;
-import info.nightscout.androidaps.db.Source;
-import info.nightscout.androidaps.db.TemporaryBasal;
+import info.nightscout.androidaps.database.transactions.pump.PumpInsertMealBolusTransaction;
 import info.nightscout.androidaps.events.EventCustomActionsChanged;
 import info.nightscout.androidaps.events.EventRefreshOverview;
 import info.nightscout.androidaps.interfaces.PluginDescription;
@@ -86,7 +81,6 @@ import info.nightscout.androidaps.plugins.pump.medtronic.events.EventMedtronicPu
 import info.nightscout.androidaps.plugins.pump.medtronic.service.RileyLinkMedtronicService;
 import info.nightscout.androidaps.plugins.pump.medtronic.util.MedtronicConst;
 import info.nightscout.androidaps.plugins.pump.medtronic.util.MedtronicUtil;
-import info.nightscout.androidaps.plugins.treatments.TreatmentsPlugin;
 import info.nightscout.androidaps.utils.SP;
 
 import static info.nightscout.androidaps.plugins.pump.medtronic.util.MedtronicUtil.sendNotification;
@@ -865,7 +859,7 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
                     else
                         bolusType = Bolus.Type.NORMAL;
 
-                    BlockingAppRepository.INSTANCE.runTransactionForResult(new PumpMealBolusTransaction(
+                    BlockingAppRepository.INSTANCE.runTransactionForResult(new PumpInsertMealBolusTransaction(
                             System.currentTimeMillis(),
                             detailedBolusInfo.insulin,
                             detailedBolusInfo.carbs,
