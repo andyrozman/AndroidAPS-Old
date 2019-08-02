@@ -57,6 +57,12 @@ class Converters {
     fun toPumpType(pumpType: String?) = pumpType?.let { InterfaceIDs.PumpType.valueOf(it) }
 
     @TypeConverter
+    fun fromAlgorithm(algorithm: APSResult.Algorithm?) = algorithm?.name
+
+    @TypeConverter
+    fun toAlgorithm(algorithm: String?) = algorithm?.let { APSResult.Algorithm.valueOf(it) }
+
+    @TypeConverter
     fun fromListOfBlocks(blocks: List<Block>?): String? {
         if (blocks == null) return null;
         val jsonArray = JSONArray()
@@ -70,7 +76,7 @@ class Converters {
     }
 
     @TypeConverter
-    fun toListOfBlocks(jsonString: String?) : List<Block>? {
+    fun toListOfBlocks(jsonString: String?): List<Block>? {
         if (jsonString == null) return null
         val jsonArray = JSONArray(jsonString)
         val list = mutableListOf<Block>()
@@ -96,7 +102,7 @@ class Converters {
     }
 
     @TypeConverter
-    fun toListOfTargetBlocks(jsonString: String?) : List<TargetBlock>? {
+    fun toListOfTargetBlocks(jsonString: String?): List<TargetBlock>? {
         if (jsonString == null) return null
         val jsonArray = JSONArray(jsonString)
         val list = mutableListOf<TargetBlock>()

@@ -1,6 +1,6 @@
 package info.nightscout.androidaps.database.interfaces
 
-interface DBEntryWithTime {
+interface DBEntryWithTime : DBEntry {
     var timestamp: Long
     var utcOffset: Long
 }

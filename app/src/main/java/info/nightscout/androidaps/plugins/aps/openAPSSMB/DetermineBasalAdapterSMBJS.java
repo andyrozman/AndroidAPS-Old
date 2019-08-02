@@ -24,6 +24,9 @@ import info.nightscout.androidaps.R;
 import info.nightscout.androidaps.data.IobTotal;
 import info.nightscout.androidaps.data.MealData;
 import info.nightscout.androidaps.data.Profile;
+import info.nightscout.androidaps.database.BlockingAppRepository;
+import info.nightscout.androidaps.database.entities.APSResult;
+import info.nightscout.androidaps.database.transactions.InsertAPSResultTransaction;
 import info.nightscout.androidaps.db.TemporaryBasal;
 import info.nightscout.androidaps.logging.L;
 import info.nightscout.androidaps.plugins.aps.loop.ScriptReader;
@@ -141,6 +144,20 @@ public class DetermineBasalAdapterSMBJS {
                     log.debug("Result: " + result);
                 try {
                     determineBasalResultSMB = new DetermineBasalResultSMB(new JSONObject(result));
+                    String autosensJson = null;
+                    if (mAutosensData != null) autosensJson = mAutosensData.toString();
+                    BlockingAppRepository.INSTANCE.runTransaction(new InsertAPSResultTransaction(
+                            System.currentTimeMillis(),
+                            APSResult.Algorithm.AMA,
+                            mGlucoseStatus.toString(),
+                            mCurrentTemp.toString(),
+                            mIobData.toString(),
+                            mProfile.toString(),
+                            autosensJson,
+                            mMealData.toString(),
+                            mMicrobolusAllowed,
+                            result
+                    ));
                 } catch (JSONException e) {
                     log.error("Unhandled exception", e);
                 }

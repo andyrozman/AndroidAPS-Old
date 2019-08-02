@@ -17,7 +17,7 @@ abstract class TemporaryBasalDao : BaseDao<TemporaryBasal>() {
     @Query("DELETE FROM $TABLE_TEMPORARY_BASALS")
     abstract override fun deleteAllEntries()
 
-    @Query("SELECT * FROM $TABLE_TEMPORARY_BASALS WHERE pumpType = :pumpType AND pumpSerial = :pumpSerial AND startId < :endId AND pumpId IS NULL AND endId IS NULL AND ABS(timestamp - :timestamp) <= 86400000 ORDER BY startId DESC LIMIT 1")
+    @Query("SELECT * FROM $TABLE_TEMPORARY_BASALS WHERE pumpType = :pumpType AND pumpSerial = :pumpSerial AND startId < :endId AND pumpId IS NULL AND endId IS NULL AND ABS(timestamp - :timestamp) <= 86400000 AND referenceId IS NULL ORDER BY startId DESC LIMIT 1")
     abstract fun getWithSmallerStartId_Within24Hours_WithPumpSerial_PumpAndEndIdAreNull(pumpType: InterfaceIDs.PumpType, pumpSerial: String, timestamp: Long, endId: Long): TemporaryBasal?
 
     @Query("SELECT * FROM $TABLE_TEMPORARY_BASALS WHERE timestamp >= :start AND timestamp <= :end AND referenceId IS NULL AND valid = 1 ORDER BY timestamp ASC")

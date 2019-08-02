@@ -22,5 +22,20 @@ data class APSResult(
         @Embedded
         override var interfaceIDs_backing: InterfaceIDs? = null,
         override var timestamp: Long,
-        override var utcOffset: Long
-) : DBEntry, DBEntryWithTime
+        override var utcOffset: Long,
+        var algorithm: Algorithm,
+        var glucoseStatusJson: String,
+        var currentTempJson: String,
+        var iobDataJson: String,
+        var profileJson: String,
+        var autosensDataJson: String?,
+        var mealDataJson: String,
+        var microBolusAllowed: Boolean?,
+        var resultJson: String
+) : DBEntry, DBEntryWithTime {
+        enum class Algorithm {
+                MA,
+                AMA,
+                SMB
+        }
+}

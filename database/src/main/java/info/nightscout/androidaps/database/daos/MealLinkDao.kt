@@ -15,9 +15,9 @@ abstract class MealLinkDao : BaseDao<MealLink>() {
     @Query("DELETE FROM $TABLE_MEAL_LINKS")
     abstract override fun deleteAllEntries()
 
-    @Query("SELECT * FROM $TABLE_MEAL_LINKS WHERE bolusId = :bolusId")
+    @Query("SELECT * FROM $TABLE_MEAL_LINKS WHERE bolusId = :bolusId AND referenceId IS NULL")
     abstract fun findByBolusId(bolusId: Long): MealLink?
 
-    @Query("SELECT * FROM $TABLE_MEAL_LINKS WHERE carbsId = :carbsId")
+    @Query("SELECT * FROM $TABLE_MEAL_LINKS WHERE carbsId = :carbsId AND referenceId IS NULL")
     abstract fun findByCarbsId(carbsId: Long): MealLink?
 }
