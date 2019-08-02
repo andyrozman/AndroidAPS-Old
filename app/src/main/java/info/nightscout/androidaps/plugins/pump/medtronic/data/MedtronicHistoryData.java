@@ -27,6 +27,8 @@ import info.nightscout.androidaps.database.interfaces.DBEntry;
 import info.nightscout.androidaps.database.interfaces.DBEntryWithTime;
 import info.nightscout.androidaps.database.transactions.pump.PumpExtendedBolusTransaction;
 import info.nightscout.androidaps.database.transactions.pump.PumpInsertMealBolusTransaction;
+import info.nightscout.androidaps.database.transactions.pump.PumpInsertUpdateBolusTransaction;
+import info.nightscout.androidaps.database.transactions.pump.PumpInsertUpdateTemporaryBasalTransaction;
 import info.nightscout.androidaps.db.DatabaseHelper;
 import info.nightscout.androidaps.db.ExtendedBolus;
 import info.nightscout.androidaps.db.Source;
@@ -36,6 +38,7 @@ import info.nightscout.androidaps.logging.L;
 import info.nightscout.androidaps.plugins.configBuilder.DetailedBolusInfoStorage;
 import info.nightscout.androidaps.plugins.pump.common.utils.DateTimeUtil;
 import info.nightscout.androidaps.plugins.pump.common.utils.StringUtil;
+import info.nightscout.androidaps.plugins.pump.insight.descriptors.BolusType;
 import info.nightscout.androidaps.plugins.pump.medtronic.comm.history.pump.MedtronicPumpHistoryDecoder;
 import info.nightscout.androidaps.plugins.pump.medtronic.comm.history.pump.PumpHistoryEntry;
 import info.nightscout.androidaps.plugins.pump.medtronic.comm.history.pump.PumpHistoryEntryType;
@@ -885,14 +888,22 @@ public class MedtronicHistoryData {
 
             addCarbsFromEstimate(detailedBolusInfo, bolus);
 
-            //TODO: Fix Medtronic driver
-            boolean newRecord = TreatmentsPlugin.getPlugin().addToHistoryTreatment(detailedBolusInfo, false);
+            BlockingAppRepository.INSTANCE.runTransactionForResult(new PumpInsertUpdateBolusTransaction(
+                    tryToGetByLocalTime(bolus.atechDateTime),
+                    bolusDTO.getDeliveredAmount(),
+                    detailedBolusInfo.carbs,
+                    Bolus.Type.NORMAL,
+                    InterfaceIDs.PumpType.MEDTRONIC,
+                    getPumpSerial(),
+                    bolus.getPumpId(),
+                    null
+            ));
 
             bolus.setLinkedObject(detailedBolusInfo);
 
             if (isLogEnabled())
                 LOG.debug("editBolus - [date={},pumpId={}, insulin={}, newRecord={}]", detailedBolusInfo.date,
-                        detailedBolusInfo.pumpId, detailedBolusInfo.insulin, newRecord);
+                        detailedBolusInfo.pumpId, detailedBolusInfo.insulin, detailedBolusInfo);
 
         }
     }
@@ -916,31 +927,47 @@ public class MedtronicHistoryData {
         info.nightscout.androidaps.database.entities.TemporaryBasal temporaryBasalDb = temporaryBasalDbInput;
         String operation = "editTBR";
 
-        if (temporaryBasalDb == null) {
-            temporaryBasalDb = new info.nightscout.androidaps.database.entities.TemporaryBasal();
-            temporaryBasalDb.date = tryToGetByLocalTime(treatment.atechDateTime);
+        long date = 0;
 
+        if (temporaryBasalDb == null) {
+            //temporaryBasalDb = new info.nightscout.androidaps.database.entities.TemporaryBasal();
+            //temporaryBasalDb.date = tryToGetByLocalTime(treatment.atechDateTime);
+            date = tryToGetByLocalTime(treatment.atechDateTime);
             operation = "addTBR";
+        } else {
+            date = temporaryBasalDb.getTimestamp();
         }
 
-        temporaryBasalDb.source = Source.PUMP;
-        temporaryBasalDb.pumpId = treatment.getPumpId();
-        temporaryBasalDb.durationInMinutes = tbr.getDurationMinutes();
-        temporaryBasalDb.absoluteRate = tbr.getInsulinRate();
-        temporaryBasalDb.isAbsolute = !tbr.isPercent();
+        TemporaryBasal temporaryBasalX = new TemporaryBasal();
+        temporaryBasalX.source = Source.PUMP;
+        temporaryBasalX.pumpId = treatment.getPumpId();
+        temporaryBasalX.durationInMinutes = tbr.getDurationMinutes();
+        temporaryBasalX.absoluteRate = tbr.getInsulinRate();
+        temporaryBasalX.isAbsolute = !tbr.isPercent();
+        temporaryBasalX.date = date;
 
-        treatment.setLinkedObject(temporaryBasalDb);
-        //TODO: Fix Medtronic driver
-        //databaseHelper.createOrUpdate(temporaryBasalDb);
+        treatment.setLinkedObject(temporaryBasalX);
+
+
+        BlockingAppRepository.INSTANCE.runTransactionForResult(new PumpInsertUpdateTemporaryBasalTransaction(
+                date,
+                0L,
+                tbr.getDurationMinutes(),
+                !tbr.isPercent(),
+                tbr.getInsulinRate(),
+                InterfaceIDs.PumpType.MEDTRONIC,
+                getPumpSerial(),
+                treatment.getPumpId()
+        ));
 
         if (isLogEnabled())
             LOG.debug(operation + " - [date={},pumpId={}, rate={} {}, duration={}]", //
-                    temporaryBasalDb.date, //
-                    temporaryBasalDb.pumpId, //
-                    temporaryBasalDb.isAbsolute ? String.format(Locale.ENGLISH, "%.2f", temporaryBasalDb.absoluteRate) :
-                            String.format(Locale.ENGLISH, "%d", temporaryBasalDb.percentRate), //
-                    temporaryBasalDb.isAbsolute ? "U/h" : "%", //
-                    temporaryBasalDb.durationInMinutes);
+                    temporaryBasalX.date, //
+                    temporaryBasalX.pumpId, //
+                    temporaryBasalX.isAbsolute ? String.format(Locale.ENGLISH, "%.2f", temporaryBasalX.absoluteRate) :
+                            String.format(Locale.ENGLISH, "%d", temporaryBasalX.percentRate), //
+                    temporaryBasalX.isAbsolute ? "U/h" : "%", //
+                    temporaryBasalX.durationInMinutes);
     }
 
 
