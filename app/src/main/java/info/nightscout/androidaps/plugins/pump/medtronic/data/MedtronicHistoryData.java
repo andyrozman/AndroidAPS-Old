@@ -25,6 +25,8 @@ import info.nightscout.androidaps.database.embedments.InterfaceIDs;
 import info.nightscout.androidaps.database.entities.Bolus;
 import info.nightscout.androidaps.database.interfaces.DBEntry;
 import info.nightscout.androidaps.database.interfaces.DBEntryWithTime;
+import info.nightscout.androidaps.database.transactions.medtronic.MedtronicHistoryTransaction;
+import info.nightscout.androidaps.database.transactions.medtronic.entry.MDTPumpHistoryEntry;
 import info.nightscout.androidaps.database.transactions.pump.PumpExtendedBolusTransaction;
 import info.nightscout.androidaps.database.transactions.pump.PumpInsertMealBolusTransaction;
 import info.nightscout.androidaps.database.transactions.pump.PumpInsertUpdateBolusTransaction;
@@ -466,6 +468,116 @@ public class MedtronicHistoryData {
             }
         }
     }
+
+
+    public void processNewHistoryData_NewDb() {
+
+        // TDD
+        List<PumpHistoryEntry> tdds = getFilteredItems(PumpHistoryEntryType.EndResultTotals, getTDDType());
+
+        if (isLogEnabled())
+            LOG.debug("ProcessHistoryData: TDD [count={}, items={}]", tdds.size(), gson.toJson(tdds));
+
+//        if (isCollectionNotEmpty(tdds)) {
+//            try {
+//                processTDDs(tdds);
+//            } catch (Exception ex) {
+//                LOG.error("ProcessHistoryData: Error processing TDD entries: " + ex.getMessage(), ex);
+//                throw ex;
+//            }
+//        }
+
+        pumpTime = MedtronicUtil.getPumpTime();
+
+        // Bolus
+        List<PumpHistoryEntry> treatments = getFilteredItems(PumpHistoryEntryType.Bolus);
+
+        if (isLogEnabled())
+            LOG.debug("ProcessHistoryData: Bolus [count={}, items={}]", treatments.size(), gson.toJson(treatments));
+
+//        if (treatments.size() > 0) {
+//            try {
+//                processBolusEntries(treatments);
+//            } catch (Exception ex) {
+//                LOG.error("ProcessHistoryData: Error processing Bolus entries: " + ex.getMessage(), ex);
+//                throw ex;
+//            }
+//        }
+
+        // TBR
+        List<PumpHistoryEntry> tbrs = getFilteredItems(PumpHistoryEntryType.TempBasalCombined);
+
+        if (isLogEnabled())
+            LOG.debug("ProcessHistoryData: TBRs Processed [count={}, items={}]", tbrs.size(), gson.toJson(tbrs));
+
+//        if (tbrs.size() > 0) {
+//            try {
+//                processTBREntries(tbrs);
+//            } catch (Exception ex) {
+//                LOG.error("ProcessHistoryData: Error processing TBR entries: " + ex.getMessage(), ex);
+//                throw ex;
+//            }
+//        }
+
+        // 'Delivery Suspend'
+        List<TempBasalProcessDTO> suspends = null;
+
+        try {
+            suspends = getSuspends();
+        } catch (Exception ex) {
+            LOG.error("ProcessHistoryData: Error getting Suspend entries: " + ex.getMessage(), ex);
+            throw ex;
+        }
+
+        if (isLogEnabled())
+            LOG.debug("ProcessHistoryData: 'Delivery Suspend' Processed [count={}, items={}]", suspends.size(),
+                    gson.toJson(suspends));
+
+//        if (isCollectionNotEmpty(suspends)) {
+//            try {
+//                processSuspends(suspends);
+//            } catch (Exception ex) {
+//                LOG.error("ProcessHistoryData: Error processing Suspends entries: " + ex.getMessage(), ex);
+//                throw ex;
+//            }
+//        }
+
+
+        BlockingAppRepository.INSTANCE.runTransactionForResult(new MedtronicHistoryTransaction(
+                getPumpSerial(),
+                convertPumpHistoryEntries2(tdds),
+                convertPumpHistoryEntries(treatments),
+                convertPumpHistoryEntries(tbrs),
+                null
+        ));
+
+
+
+    }
+
+
+
+
+
+    private List<MedtronicHistoryTransaction.PumpHistoryEntry> convertPumpHistoryEntries2(List<PumpHistoryEntry> inList) {
+
+
+
+
+        return null;
+    }
+
+
+
+    private List<MDTPumpHistoryEntry> convertPumpHistoryEntries(List<PumpHistoryEntry> inList) {
+
+
+
+
+        return null;
+    }
+
+
 
 
     private void processTDDs(List<PumpHistoryEntry> tddsIn) {
