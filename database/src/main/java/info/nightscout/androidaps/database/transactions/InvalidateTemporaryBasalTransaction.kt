@@ -9,6 +9,5 @@ class InvalidateTemporaryBasalTransaction(val id: Long) : Transaction<Unit>() {
                 ?: throw IllegalArgumentException("There is no such TemporaryBasal with the specified ID.")
         tempBasal.valid = false
         database.temporaryBasalDao.updateExistingEntry(tempBasal)
-        changes.add(tempBasal)
     }
 }

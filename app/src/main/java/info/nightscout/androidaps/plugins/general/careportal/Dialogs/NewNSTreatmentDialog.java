@@ -457,7 +457,7 @@ public class NewNSTreatmentDialog extends DialogFragment implements View.OnClick
 
     private void updateBGforDateTime() {
         long millis = eventTime.getTime() - (150 * 1000L); // 2,5 * 60 * 1000
-        List<GlucoseValue> data = BlockingAppRepository.INSTANCE.getProperGlucoseValuesInTimeRange(millis, Long.MAX_VALUE);
+        List<GlucoseValue> data = BlockingAppRepository.INSTANCE.getGlucoseValuesInTimeRangeIf39OrHigher(millis, Long.MAX_VALUE);
         if ((data.size() > 0) &&
                 (data.get(0).getTimestamp() > millis - 7 * 60 * 1000L) &&
                 (data.get(0).getTimestamp() < millis + 7 * 60 * 1000L)) {

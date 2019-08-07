@@ -55,6 +55,8 @@ public class CarbsGenerator {
                 }
             });
         } else {
+            // Don't send to pump if it is in the future or more than 5 minutes in the past
+            // as pumps might return those as as "now" when reading the history.
             BlockingAppRepository.INSTANCE.runTransaction(new MealBolusTransaction(time, 0, carbs, Bolus.Type.NORMAL, 0, null));
         }
     }

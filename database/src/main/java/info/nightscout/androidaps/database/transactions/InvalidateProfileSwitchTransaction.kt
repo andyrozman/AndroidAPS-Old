@@ -9,6 +9,5 @@ class InvalidateProfileSwitchTransaction(val id: Long) : Transaction<Unit>() {
                 ?: throw IllegalArgumentException("There is no such ProfileSwitch with the specified ID.")
         profileSwitch.valid = false
         database.profileSwitchDao.updateExistingEntry(profileSwitch)
-        changes.add(profileSwitch)
     }
 }

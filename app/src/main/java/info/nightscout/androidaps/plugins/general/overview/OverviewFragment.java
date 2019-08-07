@@ -651,7 +651,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
             BlockingAppRepository.INSTANCE.runTransaction(new InsertTemporaryTargetAndCancelCurrentTransaction(
                     System.currentTimeMillis(),
                     defHelper.determineActivityTTDuration() * 60000,
-                    TemporaryTarget.Reason.EATING_SOON,
+                    TemporaryTarget.Reason.ACTIVITY,
                     defHelper.determineActivityTT(profile.getUnits())
             ));
         } else if (item.getTitle().equals(MainApp.gs(R.string.hypo))) {
@@ -659,7 +659,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
             BlockingAppRepository.INSTANCE.runTransaction(new InsertTemporaryTargetAndCancelCurrentTransaction(
                     System.currentTimeMillis(),
                     defHelper.determineHypoTTDuration() * 60000,
-                    TemporaryTarget.Reason.EATING_SOON,
+                    TemporaryTarget.Reason.HYPOGLYCEMIA,
                     defHelper.determineHypoTT(profile.getUnits())
             ));
         } else if (item.getTitle().equals(MainApp.gs(R.string.custom))) {
@@ -804,7 +804,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
     }
 
     void onClickQuickwizard() {
-        final GlucoseValue actualBg = BlockingAppRepository.INSTANCE.getLastRecentGlucoseValue();
+        final GlucoseValue actualBg = BlockingAppRepository.INSTANCE.getLastGlucoseValueIfRecent();
         final Profile profile = ProfileFunctions.getInstance().getProfile();
         final String profileName = ProfileFunctions.getInstance().getProfileName();
         final PumpInterface pump = ConfigBuilderPlugin.getPlugin().getActivePump();
@@ -1003,7 +1003,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
         loopStatusLayout.setVisibility(View.VISIBLE);
 
         CareportalFragment.updateAge(getActivity(), sage, iage, cage, pbage);
-        GlucoseValue actualBG = BlockingAppRepository.INSTANCE.getLastRecentGlucoseValue();
+        GlucoseValue actualBG = BlockingAppRepository.INSTANCE.getLastGlucoseValueIfRecent();
         GlucoseValue lastBG = BlockingAppRepository.INSTANCE.getLastGlucoseValue();
 
         final PumpInterface pump = ConfigBuilderPlugin.getPlugin().getActivePump();
@@ -1118,7 +1118,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
         // **** Calibration & CGM buttons ****
         boolean xDripIsBgSource = SourceXdripPlugin.INSTANCE.isEnabled(PluginType.BGSOURCE);
         boolean dexcomIsSource = SourceDexcomPlugin.INSTANCE.isEnabled(PluginType.BGSOURCE);
-        boolean bgAvailable = BlockingAppRepository.INSTANCE.getLastRecentGlucoseValue() != null;
+        boolean bgAvailable = BlockingAppRepository.INSTANCE.getLastGlucoseValueIfRecent() != null;
         if (calibrationButton != null) {
             if ((xDripIsBgSource || dexcomIsSource) && bgAvailable && SP.getBoolean(R.string.key_show_calibration_button, true)) {
                 calibrationButton.setVisibility(View.VISIBLE);

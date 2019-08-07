@@ -156,7 +156,7 @@ public class NewCarbsDialog extends DialogFragment implements OnClickListener, C
         notesLayout.setVisibility(SP.getBoolean(R.string.key_show_notes_entry_dialogs, false) ? View.VISIBLE : View.GONE);
         notesEdit = view.findViewById(R.id.newcarbs_notes);
 
-        GlucoseValue bgReading = BlockingAppRepository.INSTANCE.getLastRecentGlucoseValue();
+        GlucoseValue bgReading = BlockingAppRepository.INSTANCE.getLastGlucoseValueIfRecent();
         if (bgReading != null && bgReading.getValue() < 72) {
             startHypoTTCheckbox.setChecked(true);
             // see #onCheckedChanged why listeners are registered like this
@@ -398,7 +398,7 @@ public class NewCarbsDialog extends DialogFragment implements OnClickListener, C
                             BlockingAppRepository.INSTANCE.runTransaction(new InsertTemporaryTargetAndCancelCurrentTransaction(
                                     System.currentTimeMillis(),
                                     finalActivityTTDuration * 60000,
-                                    TemporaryTarget.Reason.EATING_SOON,
+                                    TemporaryTarget.Reason.ACTIVITY,
                                     Profile.toMgdl(finalActivityTT, currentProfile.getUnits())
                             ));
                         } else if (startEatingSoonTTCheckbox.isChecked()) {
@@ -412,7 +412,7 @@ public class NewCarbsDialog extends DialogFragment implements OnClickListener, C
                             BlockingAppRepository.INSTANCE.runTransaction(new InsertTemporaryTargetAndCancelCurrentTransaction(
                                     System.currentTimeMillis(),
                                     finalHypoTTDuration * 60000,
-                                    TemporaryTarget.Reason.EATING_SOON,
+                                    TemporaryTarget.Reason.HYPOGLYCEMIA,
                                     Profile.toMgdl(finalHypoTT, currentProfile.getUnits())
                             ));
                         }

@@ -9,6 +9,5 @@ class InvalidateTherapyEventTransaction(val id: Long) : Transaction<Unit>() {
                 ?: throw IllegalArgumentException("There is no such TherapyEvent with the specified ID.")
         therapyEvent.valid = false
         database.therapyEventDao.updateExistingEntry(therapyEvent)
-        changes.add(therapyEvent)
     }
 }

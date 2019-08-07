@@ -8,11 +8,11 @@ import info.nightscout.androidaps.database.entities.links.APSResultLink
 
 @Suppress("FunctionName")
 @Dao
-abstract class APSResultLinkDao : BaseDao<APSResultLink>() {
+interface APSResultLinkDao : BaseDao<APSResultLink> {
 
     @Query("SELECT * FROM $TABLE_APS_RESULT_LINKS WHERE id = :id")
-    abstract override fun findById(id: Long): APSResultLink?
+    override fun findById(id: Long): APSResultLink?
 
     @Query("DELETE FROM $TABLE_APS_RESULTS")
-    abstract override fun deleteAllEntries()
+    override fun deleteAllEntries()
 }

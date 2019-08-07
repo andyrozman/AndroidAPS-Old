@@ -15,7 +15,6 @@ class InsertTemporaryTargetAndCancelCurrentTransaction(
         if (currentlyActive != null) {
             currentlyActive.duration = timestamp - currentlyActive.timestamp
             database.temporaryTargetDao.updateExistingEntry(currentlyActive)
-            changes.add(currentlyActive)
         }
         database.temporaryTargetDao.insertNewEntry(TemporaryTarget(
                 timestamp = timestamp,
@@ -23,8 +22,6 @@ class InsertTemporaryTargetAndCancelCurrentTransaction(
                 reason = reason,
                 target = target,
                 duration = duration
-        ).apply {
-            changes.add(this)
-        })
+        ))
     }
 }

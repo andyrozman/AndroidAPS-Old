@@ -132,11 +132,11 @@ public class IobCobCalculatorPlugin extends PluginBase {
         if (DateUtil.isCloseToNow(to)) {
             // if close to now expect there can be some readings with time in close future (caused by wrong time setting)
             // so read all records
-            bgReadings = BlockingAppRepository.INSTANCE.getProperGlucoseValuesInTimeRange(start, Long.MAX_VALUE);
+            bgReadings = BlockingAppRepository.INSTANCE.getGlucoseValuesInTimeRangeIf39OrHigher(start, Long.MAX_VALUE);
             if (L.isEnabled(L.AUTOSENS))
                 log.debug("BG data loaded. Size: " + bgReadings.size() + " Start date: " + DateUtil.dateAndTimeString(start));
         } else {
-            bgReadings = BlockingAppRepository.INSTANCE.getProperGlucoseValuesInTimeRange(start, to);
+            bgReadings = BlockingAppRepository.INSTANCE.getGlucoseValuesInTimeRangeIf39OrHigher(start, to);
             if (L.isEnabled(L.AUTOSENS))
                 log.debug("BG data loaded. Size: " + bgReadings.size() + " Start date: " + DateUtil.dateAndTimeString(start) + " End date: " + DateUtil.dateAndTimeString(to));
         }

@@ -219,7 +219,7 @@ public class ActionStringHandler {
                 return;
             }
 
-            GlucoseValue bgReading = BlockingAppRepository.INSTANCE.getLastRecentGlucoseValue();
+            GlucoseValue bgReading = BlockingAppRepository.INSTANCE.getLastGlucoseValueIfRecent();
             if (bgReading == null && useBG) {
                 sendError("No recent BG to base calculation on!");
                 return;

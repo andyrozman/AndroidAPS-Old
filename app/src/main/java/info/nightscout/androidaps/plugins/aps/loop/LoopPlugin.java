@@ -158,7 +158,7 @@ public class LoopPlugin extends PluginBase {
             // Autosens calculation not triggered by a new BG
             return;
         }
-        GlucoseValue bgReading = BlockingAppRepository.INSTANCE.getLastRecentGlucoseValue();
+        GlucoseValue bgReading = BlockingAppRepository.INSTANCE.getLastGlucoseValueIfRecent();
         if (bgReading == null) {
             // BG outdated
             return;

@@ -26,9 +26,7 @@ class MealBolusTransaction(
                     amount = insulin,
                     type = type,
                     basalInsulin = false
-            ).apply {
-                changes.add(this)
-            })
+            ))
         } else {
             null
         }
@@ -39,9 +37,7 @@ class MealBolusTransaction(
                     utcOffset = utcOffset,
                     amount = carbs,
                     duration = 0
-            ).apply {
-                changes.add(this)
-            })
+            ))
         } else {
             null
         }
@@ -76,9 +72,7 @@ class MealBolusTransaction(
                     cob = bolusCalculatorResult.cob,
                     cobUsed = bolusCalculatorResult.cobUsed,
                     cobInsulin = bolusCalculatorResult.cobInsulin
-            ).apply {
-                changes.add(this)
-            })
+            ))
         } else {
             null
         }
@@ -87,9 +81,7 @@ class MealBolusTransaction(
                     bolusId = bolusDBId,
                     carbsId = carbsDBId,
                     bolusCalcResultId = bolusCalculatorResultDBId
-            ).apply {
-                changes.add(this)
-            })
+            ))
         }
     }
 

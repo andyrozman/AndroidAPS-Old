@@ -13,11 +13,11 @@ object BlockingAppRepository {
 
     fun getLastGlucoseValue(): GlucoseValue? = AppRepository.getLastGlucoseValue().blockingGet()
 
-    fun getLastRecentGlucoseValue(): GlucoseValue? = AppRepository.getLastRecentGlucoseValue().blockingGet()
+    fun getLastGlucoseValueIfRecent(): GlucoseValue? = AppRepository.getLastGlucoseValueIfRecent().blockingGet()
 
     fun getGlucoseValuesInTimeRange(start: Long, end: Long): List<GlucoseValue> = AppRepository.getGlucoseValuesInTimeRange(start, end).blockingGet()
 
-    fun getProperGlucoseValuesInTimeRange(start: Long, end: Long): List<GlucoseValue> = AppRepository.getProperGlucoseValuesInTimeRange(start, end).blockingGet()
+    fun getGlucoseValuesInTimeRangeIf39OrHigher(start: Long, end: Long): List<GlucoseValue> = AppRepository.getGlucoseValuesInTimeRangeIf39OrHigher(start, end).blockingGet()
 
     fun <T> runTransaction(transaction: Transaction<T>) = AppRepository.runTransaction(transaction).blockingAwait()
 

@@ -10,7 +10,6 @@ class InsertTemporaryBasalAndCancelCurrentTransaction(val timestamp: Long, val d
         if (currentlyActive != null) {
             currentlyActive.duration = timestamp - currentlyActive.timestamp
             database.temporaryBasalDao.updateExistingEntry(currentlyActive)
-            changes.add(currentlyActive)
         }
         database.temporaryBasalDao.insertNewEntry(TemporaryBasal(
                 timestamp = timestamp,
@@ -19,8 +18,6 @@ class InsertTemporaryBasalAndCancelCurrentTransaction(val timestamp: Long, val d
                 absolute = absolute,
                 rate = rate,
                 duration = duration
-        ).apply {
-            changes.add(this)
-        })
+        ))
     }
 }

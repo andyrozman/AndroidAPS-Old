@@ -9,6 +9,5 @@ class InvalidateExtendedBolusTransaction(val id: Long) : Transaction<Unit>() {
                 ?: throw IllegalArgumentException("There is no such ExtendedBolus with the specified ID.")
         extendedBolus.valid = false
         database.extendedBolusDao.updateExistingEntry(extendedBolus)
-        changes.add(extendedBolus)
     }
 }

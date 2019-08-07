@@ -34,7 +34,6 @@ class InsightMealBolusTransaction(
             interfaceIDs.pumpType = InterfaceIDs.PumpType.ACCU_CHEK_INSIGHT
             interfaceIDs.pumpSerial = pumpSerial
             interfaceIDs.pumpId = bolusId
-            changes.add(this)
         })
         val bolusCalculatorResultDBId = if (bolusCalculatorResult != null) {
             entries += 1
@@ -68,9 +67,7 @@ class InsightMealBolusTransaction(
                     cob = bolusCalculatorResult.cob,
                     cobUsed = bolusCalculatorResult.cobUsed,
                     cobInsulin = bolusCalculatorResult.cobInsulin
-            ).apply {
-                changes.add(this)
-            })
+            ))
         } else {
             null
         }
@@ -81,9 +78,7 @@ class InsightMealBolusTransaction(
                     utcOffset = utcOffset,
                     amount = carbs,
                     duration = 0
-            ).apply {
-                changes.add(this)
-            })
+            ))
         } else {
             null
         }
@@ -92,9 +87,7 @@ class InsightMealBolusTransaction(
                     bolusId = bolusDBId,
                     carbsId = carbsDBId,
                     bolusCalcResultId = bolusCalculatorResultDBId
-            ).apply {
-                changes.add(this)
-            })
+            ))
         }
     }
 }

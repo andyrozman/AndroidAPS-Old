@@ -9,6 +9,5 @@ class CancelTemporaryTargetTransaction(val timestamp: Long = System.currentTimeM
                 ?: throw IllegalStateException("There is currently no TemporaryTarget active.")
         currentlyActive.duration = timestamp - currentlyActive.timestamp
         database.temporaryTargetDao.updateExistingEntry(currentlyActive)
-        changes.add(currentlyActive)
     }
 }

@@ -28,7 +28,6 @@ class InsightExtendedBolusTransaction(
             interfaceIDs.pumpType = InterfaceIDs.PumpType.ACCU_CHEK_INSIGHT
             interfaceIDs.pumpSerial = pumpSerial
             interfaceIDs.pumpId = bolusId
-            changes.add(this)
         })
     }
 }

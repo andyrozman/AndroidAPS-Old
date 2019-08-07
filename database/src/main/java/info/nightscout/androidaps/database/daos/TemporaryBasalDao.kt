@@ -9,30 +9,31 @@ import io.reactivex.Flowable
 
 @Suppress("FunctionName")
 @Dao
-abstract class TemporaryBasalDao : BaseDao<TemporaryBasal>() {
+interface TemporaryBasalDao : BaseDao<TemporaryBasal> {
 
     @Query("SELECT * FROM $TABLE_TEMPORARY_BASALS WHERE id = :id")
-    abstract override fun findById(id: Long): TemporaryBasal?
+    override fun findById(id: Long): TemporaryBasal?
 
     @Query("DELETE FROM $TABLE_TEMPORARY_BASALS")
-    abstract override fun deleteAllEntries()
+    override fun deleteAllEntries()
 
     @Query("SELECT * FROM $TABLE_TEMPORARY_BASALS WHERE pumpType = :pumpType AND pumpSerial = :pumpSerial AND startId < :endId AND pumpId IS NULL AND endId IS NULL AND ABS(timestamp - :timestamp) <= 86400000 AND referenceId IS NULL ORDER BY startId DESC LIMIT 1")
-    abstract fun getWithSmallerStartId_Within24Hours_WithPumpSerial_PumpAndEndIdAreNull(pumpType: InterfaceIDs.PumpType, pumpSerial: String, timestamp: Long, endId: Long): TemporaryBasal?
+    fun getWithSmallerStartId_Within24Hours_WithPumpSerial_PumpAndEndIdAreNull(pumpType: InterfaceIDs.PumpType, pumpSerial: String, timestamp: Long, endId: Long): TemporaryBasal?
 
     @Query("SELECT * FROM $TABLE_TEMPORARY_BASALS WHERE timestamp >= :start AND timestamp <= :end AND referenceId IS NULL AND valid = 1 ORDER BY timestamp ASC")
-    abstract fun getTemporaryBasalsInTimeRange(start: Long, end: Long): Flowable<List<TemporaryBasal>>
+    fun getTemporaryBasalsInTimeRange(start: Long, end: Long): Flowable<List<TemporaryBasal>>
 
     @Query("SELECT * FROM $TABLE_TEMPORARY_BASALS WHERE timestamp <= :timestamp AND (timestamp + duration) > :timestamp AND referenceId IS NULL AND valid = 1 ORDER BY timestamp DESC LIMIT 1")
-    abstract fun getTemporaryBasalActiveAt(timestamp: Long): TemporaryBasal?
+    fun getTemporaryBasalActiveAt(timestamp: Long): TemporaryBasal?
 
     @Query("SELECT * FROM $TABLE_TEMPORARY_BASALS WHERE pumpType = :pumpType AND pumpSerial = :pumpSerial AND timestamp <= :timestamp AND (timestamp + duration) > :timestamp AND referenceId IS NULL ORDER BY timestamp DESC LIMIT 1")
-    abstract fun getTemporaryBasalActiveAtForPump(timestamp: Long, pumpType: InterfaceIDs.PumpType, pumpSerial: String): TemporaryBasal?
+    fun getTemporaryBasalActiveAtForPump(timestamp: Long, pumpType: InterfaceIDs.PumpType, pumpSerial: String): TemporaryBasal?
 
     @Query("SELECT * FROM $TABLE_TEMPORARY_BASALS WHERE pumpType = :pumpType AND pumpSerial = :pumpSerial AND pumpId = :pumpId AND referenceId IS NULL ORDER BY timestamp DESC LIMIT 1")
-    abstract fun getTemporaryBasalByPumpId(pumpType: InterfaceIDs.PumpType, pumpSerial: String, pumpId: Long): TemporaryBasal?
+    fun getTemporaryBasalByPumpId(pumpType: InterfaceIDs.PumpType, pumpSerial: String, pumpId: Long): TemporaryBasal?
 
     @Query("SELECT * FROM $TABLE_TEMPORARY_BASALS WHERE pumpType = :pumpType AND pumpSerial = :pumpSerial AND timestamp = :timestamp AND referenceId IS NULL ORDER BY timestamp DESC LIMIT 1")
-    abstract fun getTemporaryBasalByTimeAndPump(timestamp: Long, pumpType: InterfaceIDs.PumpType, pumpSerial: String): TemporaryBasal?
+    fun getTemporaryBasalByTimeAndPump(timestamp: Long, pumpType: InterfaceIDs.PumpType, pumpSerial: String): TemporaryBasal?
+
 
 }

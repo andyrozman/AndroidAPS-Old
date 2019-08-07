@@ -29,9 +29,7 @@ class InsertAPSResultTransaction(
                 mealDataJson = mealDataJson,
                 microBolusAllowed = microBolusAllowed,
                 resultJson = resultJson
-        ).apply {
-            changes.add(this)
-        })
+        ))
     }
 
 }

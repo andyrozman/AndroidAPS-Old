@@ -68,7 +68,7 @@ object UploadChunk {
 
     private fun getOldestRecordTimeStamp(): Long {
         // TODO we could make sure we include records older than the first bg record for completeness
-        return BlockingAppRepository.getProperGlucoseValuesInTimeRange(0, DateUtil.now()).firstOrNull()?.timestamp ?: -1L
+        return BlockingAppRepository.getGlucoseValuesInTimeRangeIf39OrHigher(0, DateUtil.now()).firstOrNull()?.timestamp ?: -1L
     }
 
     private fun getTreatments(start: Long, end: Long): List<BaseElement> {
@@ -94,7 +94,7 @@ object UploadChunk {
     }
 
     internal fun getBgReadings(start: Long, end: Long): List<SensorGlucoseElement> {
-        val readings = BlockingAppRepository.getProperGlucoseValuesInTimeRange(start, end)
+        val readings = BlockingAppRepository.getGlucoseValuesInTimeRangeIf39OrHigher(start, end)
         val selection = SensorGlucoseElement.fromBgReadings(readings)
         if (selection.isNotEmpty())
             RxBus.send(EventTidepoolStatus("${selection.size} CGMs selected for upload"))

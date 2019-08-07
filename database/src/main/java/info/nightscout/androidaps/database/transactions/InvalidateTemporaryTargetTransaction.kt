@@ -9,6 +9,5 @@ class InvalidateTemporaryTargetTransaction(val id: Long) : Transaction<Unit>() {
                 ?: throw IllegalArgumentException("There is no such TemporaryTarget with the specified ID.")
         tempBasal.valid = false
         database.temporaryTargetDao.updateExistingEntry(tempBasal)
-        changes.add(tempBasal)
     }
 }

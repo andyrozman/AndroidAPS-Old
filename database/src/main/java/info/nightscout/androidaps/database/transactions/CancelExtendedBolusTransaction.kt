@@ -10,6 +10,5 @@ class CancelExtendedBolusTransaction : Transaction<Unit>() {
                 ?: throw IllegalStateException("There is currently no ExtendedBolus active.")
         currentlyActive.duration = currentTimeMillis - currentlyActive.timestamp
         database.extendedBolusDao.updateExistingEntry(currentlyActive)
-        changes.add(currentlyActive)
     }
 }

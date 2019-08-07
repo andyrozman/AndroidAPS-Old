@@ -9,6 +9,5 @@ class CancelTemporaryBasalTransaction(val timestamp: Long = System.currentTimeMi
                 ?: throw IllegalStateException("There is currently no TemporaryBasal active.")
         currentlyActive.duration = timestamp - currentlyActive.timestamp
         database.temporaryBasalDao.updateExistingEntry(currentlyActive)
-        changes.add(currentlyActive)
     }
 }

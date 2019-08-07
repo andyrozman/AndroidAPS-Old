@@ -1,14 +1,11 @@
 package info.nightscout.androidaps.database.transactions
 
-import info.nightscout.androidaps.database.AppDatabase
-import info.nightscout.androidaps.database.interfaces.DBEntry
+import info.nightscout.androidaps.database.DelegatedAppDatabase
 
 abstract class Transaction<T> {
 
     internal abstract fun run(): T
 
-    internal val changes = mutableListOf<DBEntry>()
-
-    internal lateinit var database: AppDatabase
+    internal lateinit var database: DelegatedAppDatabase
 
 }

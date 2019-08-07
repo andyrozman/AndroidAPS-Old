@@ -17,7 +17,6 @@ class TherapyEventTransaction(
             if (currentlyActive != null) {
                 currentlyActive.duration = timestamp - currentlyActive.timestamp
                 database.therapyEventDao.updateExistingEntry(currentlyActive)
-                changes.add(currentlyActive)
             }
             if (duration != 0L) {
                 database.therapyEventDao.insertNewEntry(TherapyEvent(
@@ -25,9 +24,7 @@ class TherapyEventTransaction(
                         utcOffset = TimeZone.getDefault().getOffset(timestamp).toLong(),
                         duration = duration,
                         type = type
-                ).apply {
-                    changes.add(this)
-                })
+                ))
             }
         } else {
             database.therapyEventDao.insertNewEntry(TherapyEvent(
@@ -37,9 +34,7 @@ class TherapyEventTransaction(
                     note = note,
                     amount = amount,
                     type = type
-            ).apply {
-                changes.add(this)
-            })
+            ))
         }
     }
 }

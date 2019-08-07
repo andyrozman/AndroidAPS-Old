@@ -7,11 +7,11 @@ import info.nightscout.androidaps.database.entities.APSResult
 
 @Suppress("FunctionName")
 @Dao
-abstract class APSResultDao : BaseDao<APSResult>() {
+interface APSResultDao : BaseDao<APSResult> {
 
     @Query("SELECT * FROM $TABLE_APS_RESULTS WHERE id = :id")
-    abstract override fun findById(id: Long): APSResult?
+    override fun findById(id: Long): APSResult?
 
     @Query("DELETE FROM $TABLE_APS_RESULTS")
-    abstract override fun deleteAllEntries()
+    override fun deleteAllEntries()
 }

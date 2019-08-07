@@ -12,8 +12,6 @@ class InsertExtendedBolusTransaction(val timestamp: Long, val duration: Long, va
                 amount = amount,
                 duration = duration,
                 emulatingTempBasal = false
-        ).apply {
-            changes.add(this)
-        })
+        ))
     }
 }

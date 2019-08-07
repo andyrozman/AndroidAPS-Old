@@ -9,19 +9,19 @@ import io.reactivex.Flowable
 
 @Suppress("FunctionName")
 @Dao
-abstract class ProfileSwitchDao : BaseDao<ProfileSwitch>() {
+interface ProfileSwitchDao : BaseDao<ProfileSwitch> {
 
     @Query("SELECT * FROM $TABLE_PROFILE_SWITCHES WHERE id = :id")
-    abstract override fun findById(id: Long): ProfileSwitch?
+    override fun findById(id: Long): ProfileSwitch?
 
     @Query("DELETE FROM $TABLE_PROFILE_SWITCHES")
-    abstract override fun deleteAllEntries()
+    override fun deleteAllEntries()
 
     @Query("SELECT * FROM $TABLE_PROFILE_SWITCHES WHERE timestamp >= :start AND timestamp <= :end AND referenceId IS NULL AND valid = 1 ORDER BY timestamp ASC")
-    abstract fun getProfileSwitchesInTimeRange(start: Long, end: Long): Flowable<List<ProfileSwitch>>
+    fun getProfileSwitchesInTimeRange(start: Long, end: Long): Flowable<List<ProfileSwitch>>
 
     @Query("SELECT * FROM $TABLE_PROFILE_SWITCHES WHERE referenceId IS NULL AND valid = 1 ORDER BY timestamp ASC")
-    abstract fun getAllProfileSwitches(): Flowable<List<ProfileSwitch>>
+    fun getAllProfileSwitches(): Flowable<List<ProfileSwitch>>
 
     override fun insertNewEntry(entry: ProfileSwitch): Long {
         if (!entry.basalBlocks.checkSanity()) throw IllegalArgumentException("Sanity check failed for basal blocks.")

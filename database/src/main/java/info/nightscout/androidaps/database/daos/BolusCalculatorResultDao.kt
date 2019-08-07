@@ -7,11 +7,11 @@ import info.nightscout.androidaps.database.entities.BolusCalculatorResult
 
 @Suppress("FunctionName")
 @Dao
-abstract class BolusCalculatorResultDao : BaseDao<BolusCalculatorResult>() {
+interface BolusCalculatorResultDao : BaseDao<BolusCalculatorResult> {
 
     @Query("SELECT * FROM $TABLE_BOLUS_CALCULATOR_RESULTS WHERE id = :id")
-    abstract override fun findById(id: Long): BolusCalculatorResult?
+    override fun findById(id: Long): BolusCalculatorResult?
 
     @Query("DELETE FROM $TABLE_BOLUS_CALCULATOR_RESULTS")
-    abstract override fun deleteAllEntries()
+    override fun deleteAllEntries()
 }

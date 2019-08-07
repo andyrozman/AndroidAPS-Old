@@ -5,24 +5,24 @@ import androidx.room.Transaction
 import androidx.room.Update
 import info.nightscout.androidaps.database.interfaces.DBEntry
 
-abstract class BaseDao<T : DBEntry> {
+interface BaseDao<T : DBEntry> {
 
-    abstract fun findById(id: Long): T?
+    fun findById(id: Long): T?
 
-    abstract fun deleteAllEntries()
+    fun deleteAllEntries()
 
     @Insert
-    protected abstract fun insert(entry: T): Long
+    fun insert(entry: T): Long
 
     @Update
-    protected abstract fun update(entry: T)
+    fun update(entry: T)
 
     /**
      * Inserts a new entry
      * @return The ID of the newly generated entry
      */
     @Transaction
-    open fun insertNewEntry(entry: T): Long {
+    fun insertNewEntry(entry: T): Long {
         if (entry.id != 0L) throw IllegalArgumentException("ID must be 0.")
         if (entry.version != 0) throw IllegalArgumentException("Version must be 0.")
         if (entry.referenceId != null) throw IllegalArgumentException("Reference ID must be null.")
@@ -39,7 +39,7 @@ abstract class BaseDao<T : DBEntry> {
      * @return The ID of the newly generated HISTORIC entry
      */
     @Transaction
-    open fun updateExistingEntry(entry: T): Long {
+    fun updateExistingEntry(entry: T): Long {
         if (entry.id == 0L) throw IllegalArgumentException("ID must not be 0.")
         if (entry.referenceId != null) throw IllegalArgumentException("Reference ID must be null.")
         if (!entry.foreignKeysValid) throw IllegalArgumentException("One or more foreign keys are invalid (e.g. 0 value).")

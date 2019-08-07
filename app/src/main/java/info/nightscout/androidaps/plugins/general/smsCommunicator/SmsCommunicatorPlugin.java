@@ -264,7 +264,7 @@ public class SmsCommunicatorPlugin extends PluginBase {
 
     @SuppressWarnings("unused")
     private void processBG(String[] splitted, Sms receivedSms) {
-        GlucoseValue actualBG = BlockingAppRepository.INSTANCE.getLastRecentGlucoseValue();
+        GlucoseValue actualBG = BlockingAppRepository.INSTANCE.getLastGlucoseValueIfRecent();
         GlucoseValue lastBG = BlockingAppRepository.INSTANCE.getLastGlucoseValue();
 
         String reply = "";

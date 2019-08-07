@@ -61,7 +61,6 @@ class InsightHistoryTransaction(val pumpSerial: String) : Transaction<Unit>() {
                 interfaceIDs.pumpSerial = pumpSerial
                 interfaceIDs.pumpId = eventId
                 interfaceIDs.pumpType = InterfaceIDs.PumpType.ACCU_CHEK_INSIGHT
-                changes.add(this)
             })
         }
     }
@@ -97,7 +96,6 @@ class InsightHistoryTransaction(val pumpSerial: String) : Transaction<Unit>() {
                 interfaceIDs.pumpSerial = pumpSerial
                 interfaceIDs.pumpId = startEvent.eventId
                 interfaceIDs.pumpType = InterfaceIDs.PumpType.ACCU_CHEK_INSIGHT
-                changes.add(this)
             })
         }
     }
@@ -131,7 +129,6 @@ class InsightHistoryTransaction(val pumpSerial: String) : Transaction<Unit>() {
                 interfaceIDs.pumpSerial = pumpSerial
                 interfaceIDs.pumpId = it.eventId
                 interfaceIDs.pumpType = InterfaceIDs.PumpType.ACCU_CHEK_INSIGHT
-                changes.add(this)
             })
         }
     }
@@ -142,7 +139,6 @@ class InsightHistoryTransaction(val pumpSerial: String) : Transaction<Unit>() {
             dbTBR.duration = temporaryBasal.duration
             dbTBR.interfaceIDs.endId = temporaryBasal.eventId
             database.temporaryBasalDao.updateExistingEntry(dbTBR)
-            changes.add(dbTBR)
         } else {
             dbTBR = TemporaryBasal(
                     utcOffset = TimeZone.getDefault().getOffset(temporaryBasal.timestamp).toLong(),
@@ -155,7 +151,6 @@ class InsightHistoryTransaction(val pumpSerial: String) : Transaction<Unit>() {
             dbTBR.interfaceIDs.pumpSerial = pumpSerial
             dbTBR.interfaceIDs.endId = temporaryBasal.eventId
             database.temporaryBasalDao.insertNewEntry(dbTBR)
-            changes.add(dbTBR)
         }
     }
 
@@ -190,7 +185,6 @@ class InsightHistoryTransaction(val pumpSerial: String) : Transaction<Unit>() {
                 interfaceIDs.startId = it.first.eventId
                 interfaceIDs.endId = it.second?.eventId
                 interfaceIDs.pumpType = InterfaceIDs.PumpType.ACCU_CHEK_INSIGHT
-                changes.add(this)
             })
         }
     }
@@ -206,7 +200,6 @@ class InsightHistoryTransaction(val pumpSerial: String) : Transaction<Unit>() {
             if (startId != null) bolus.interfaceIDs.startId = startId
             if (endId != null) bolus.interfaceIDs.endId = endId
             database.bolusDao.updateExistingEntry(bolus)
-            changes.add(bolus)
             return bolus.id to false
         } else {
             bolus = Bolus(
@@ -221,7 +214,6 @@ class InsightHistoryTransaction(val pumpSerial: String) : Transaction<Unit>() {
             bolus.interfaceIDs.endId = endId
             bolus.interfaceIDs.pumpSerial = pumpSerial
             bolus.interfaceIDs.pumpType = InterfaceIDs.PumpType.ACCU_CHEK_INSIGHT
-            changes.add(bolus)
             return database.bolusDao.insertNewEntry(bolus) to true
         }
     }
@@ -238,7 +230,6 @@ class InsightHistoryTransaction(val pumpSerial: String) : Transaction<Unit>() {
             if (startId != null) extendedBolus.interfaceIDs.startId = startId
             if (endId != null) extendedBolus.interfaceIDs.endId = endId
             database.extendedBolusDao.updateExistingEntry(extendedBolus)
-            changes.add(extendedBolus)
             return extendedBolus.id to false
         } else {
             extendedBolus = ExtendedBolus(
@@ -253,7 +244,6 @@ class InsightHistoryTransaction(val pumpSerial: String) : Transaction<Unit>() {
             extendedBolus.interfaceIDs.endId = endId
             extendedBolus.interfaceIDs.pumpSerial = pumpSerial
             extendedBolus.interfaceIDs.pumpType = InterfaceIDs.PumpType.ACCU_CHEK_INSIGHT
-            changes.add(extendedBolus)
             return database.extendedBolusDao.insertNewEntry(extendedBolus) to true
         }
     }
@@ -269,14 +259,12 @@ class InsightHistoryTransaction(val pumpSerial: String) : Transaction<Unit>() {
                 interfaceIDs.endId = endId
                 interfaceIDs.pumpSerial = pumpSerial
                 interfaceIDs.pumpType = InterfaceIDs.PumpType.ACCU_CHEK_INSIGHT
-                changes.add(this)
             })
         } else {
             val multiwaveBolusLink = database.multiwaveBolusLinkDao.findByBolusIDs(standardBolusId, extendedBolusId)!!
             if (startId != null) multiwaveBolusLink.interfaceIDs.startId = startId
             if (endId != null) multiwaveBolusLink.interfaceIDs.endId = endId
             database.multiwaveBolusLinkDao.updateExistingEntry(multiwaveBolusLink)
-            changes.add(multiwaveBolusLink)
             return multiwaveBolusLink.id
         }
     }

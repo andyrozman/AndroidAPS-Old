@@ -36,8 +36,6 @@ class InsertProfileSwitchTransaction(
                 percentage = percentage,
                 duration = duration,
                 profileName = profileName
-        ).apply {
-            changes.add(this)
-        })
+        ))
     }
 }
