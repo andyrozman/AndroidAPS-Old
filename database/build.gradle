@@ -36,6 +36,9 @@ dependencies {
 
     implementation "androidx.lifecycle:lifecycle-livedata:$lifecycle_version"
 
+    implementation "org.slf4j:slf4j-api:1.7.21"
+    implementation "com.google.code.gson:gson:2.8.5"
+
     androidTestImplementation "junit:junit:4.12"
     androidTestImplementation 'androidx.test:core:1.2.0'
     androidTestImplementation 'androidx.test:runner:1.2.0'

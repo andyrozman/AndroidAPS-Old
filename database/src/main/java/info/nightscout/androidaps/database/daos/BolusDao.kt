@@ -32,7 +32,7 @@ abstract class BolusDao : BaseDao<Bolus>() {
     abstract fun getBolusesInTimeRange(start: Long, end: Long): List<Bolus>
 
     @Query("SELECT * FROM $TABLE_BOLUSES WHERE timestamp >= :start AND referenceId IS NULL AND pumpType = :pumpType AND pumpSerial = :pumpSerial AND valid = 1 ORDER BY timestamp ASC")
-    abstract fun getBolusesStartingWithTimeForPump(start: Long, pumpType: InterfaceIDs.PumpType, pumpSerial: Long): Flowable<List<Bolus>>
+    abstract fun getBolusesStartingWithTimeForPump(start: Long, pumpType: InterfaceIDs.PumpType, pumpSerial: Long): List<Bolus>
 
     @Query("SELECT * FROM $TABLE_BOLUSES WHERE pumpType = :pumpType AND pumpSerial = :pumpSerial AND pumpId = :pumpId AND referenceId IS NULL ORDER BY timestamp DESC LIMIT 1")
     abstract fun getBolusByPumpId(pumpType: InterfaceIDs.PumpType, pumpSerial: String, pumpId: Long): Bolus?

@@ -20,6 +20,6 @@ abstract class TotalDailyDoseDao : BaseDao<TotalDailyDose>() {
     @Query("SELECT * FROM $TABLE_TOTAL_DAILY_DOSES WHERE referenceId IS NULL and valid = 1 ORDER BY timestamp DESC LIMIT :amount")
     abstract fun getTotalDailyDoses(amount: Int): Single<List<TotalDailyDose>>
 
-    //@Query("SELECT * FROM $TABLE_TOTAL_DAILY_DOSES WHERE TIME ORDER BY timestamp ")
-    //abstract fun getTotalDailyDosesByTimeAndPump(timestamp: Long, pumpType: InterfaceIDs.PumpType, pumpSerial: String);
+    @Query("SELECT * FROM $TABLE_TOTAL_DAILY_DOSES WHERE referenceId IS NULL and valid = 1 AND pumpType = :pumpType AND pumpSerial = :pumpSerial ORDER BY timestamp DESC LIMIT :amount")
+    abstract fun getTotalDailyDosesByCountAndPump(amount: Long, pumpType: InterfaceIDs.PumpType, pumpSerial: String): List<TotalDailyDose>
 }
