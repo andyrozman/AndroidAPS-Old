@@ -33,7 +33,6 @@ class PumpInsertMealBolusTransaction(
             interfaceIDs.pumpType = pumpType
             interfaceIDs.pumpSerial = pumpSerial
             interfaceIDs.pumpId = pumpId
-            changes.add(this)
         })
         val bolusCalculatorResultDBId = if (bolusCalculatorResult != null) {
             entries += 1

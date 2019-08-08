@@ -45,7 +45,6 @@ class PumpInsertUpdateBolusTransaction(
                 interfaceIDs.pumpType = pumpType
                 interfaceIDs.pumpSerial = pumpSerial
                 interfaceIDs.pumpId = pumpId
-                changes.add(this)
             })
             val bolusCalculatorResultDBId = if (bolusCalculatorResult != null) {
                 entries += 1
@@ -80,7 +79,6 @@ class PumpInsertUpdateBolusTransaction(
                         cobUsed = bolusCalculatorResult.cobUsed,
                         cobInsulin = bolusCalculatorResult.cobInsulin
                 ).apply {
-                    changes.add(this)
                 })
             } else {
                 null
@@ -93,7 +91,6 @@ class PumpInsertUpdateBolusTransaction(
                         amount = carbs,
                         duration = 0
                 ).apply {
-                    changes.add(this)
                 })
             } else {
                 null
@@ -104,7 +101,6 @@ class PumpInsertUpdateBolusTransaction(
                         carbsId = carbsDBId,
                         bolusCalcResultId = bolusCalculatorResultDBId
                 ).apply {
-                    changes.add(this)
                 })
             }
         } else {
@@ -121,7 +117,6 @@ class PumpInsertUpdateBolusTransaction(
                 interfaceIDs.pumpType = pumpType
                 interfaceIDs.pumpSerial = pumpSerial
                 interfaceIDs.pumpId = pumpId
-                changes.add(this)
             })
 
             val bolusCalculatorResultDBId = if (bolusCalculatorResult != null) {
@@ -157,7 +152,6 @@ class PumpInsertUpdateBolusTransaction(
                         cobUsed = bolusCalculatorResult.cobUsed,
                         cobInsulin = bolusCalculatorResult.cobInsulin
                 ).apply {
-                    changes.add(this)
                 })
             } else {
                 null
@@ -170,7 +164,6 @@ class PumpInsertUpdateBolusTransaction(
                         amount = carbs,
                         duration = 0
                 ).apply {
-                    changes.add(this)
                 })
             } else {
                 null
@@ -181,7 +174,6 @@ class PumpInsertUpdateBolusTransaction(
                         carbsId = carbsDBId,
                         bolusCalcResultId = bolusCalculatorResultDBId
                 ).apply {
-                    changes.add(this)
                 })
             }
 

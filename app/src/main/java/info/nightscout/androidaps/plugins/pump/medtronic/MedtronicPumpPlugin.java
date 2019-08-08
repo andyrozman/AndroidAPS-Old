@@ -1060,6 +1060,7 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
 
                 BlockingAppRepository.INSTANCE.runTransactionForResult(new PumpInsertTemporaryBasalTransaction(
                         System.currentTimeMillis(),
+                        0,
                         durationInMinutes,
                         true,
                         absoluteRate,

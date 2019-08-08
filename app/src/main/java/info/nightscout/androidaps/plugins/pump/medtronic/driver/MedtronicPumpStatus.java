@@ -142,7 +142,6 @@ public class MedtronicPumpStatus extends PumpStatus {
     public boolean verifyConfiguration() {
         try {
 
-            // FIXME don't reload information several times
             if (this.medtronicPumpMap == null)
                 createMedtronicPumpMap();
 

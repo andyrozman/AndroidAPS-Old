@@ -47,7 +47,6 @@ class PumpInsertUpdateTemporaryBasalTransaction(
                 interfaceIDs.pumpType = pumpType
                 interfaceIDs.pumpSerial = pumpSerial
                 interfaceIDs.pumpId = pumpId
-                changes.add(this)
             })
         } else {
             database.temporaryBasalDao.updateExistingEntry(TemporaryBasal(
@@ -61,7 +60,6 @@ class PumpInsertUpdateTemporaryBasalTransaction(
                 interfaceIDs.pumpType = pumpType
                 interfaceIDs.pumpSerial = pumpSerial
                 interfaceIDs.pumpId = pumpId
-                changes.add(this)
             })
         }
     }

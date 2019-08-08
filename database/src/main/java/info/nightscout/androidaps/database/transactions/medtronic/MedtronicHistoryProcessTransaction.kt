@@ -1,28 +1,22 @@
 package info.nightscout.androidaps.database.transactions.medtronic
 
 import com.google.gson.Gson
-import info.nightscout.androidaps.database.BlockingAppRepository
 import info.nightscout.androidaps.database.embedments.InterfaceIDs
-import info.nightscout.androidaps.database.entities.Bolus
-import info.nightscout.androidaps.database.entities.TemporaryBasal
-import info.nightscout.androidaps.database.entities.TotalDailyDose
+import info.nightscout.androidaps.database.entities.*
+import info.nightscout.androidaps.database.entities.links.MealLink
 import info.nightscout.androidaps.database.interfaces.DBEntry
 import info.nightscout.androidaps.database.interfaces.DBEntryWithTime
 import info.nightscout.androidaps.database.transactions.Transaction
-import info.nightscout.androidaps.database.transactions.pump.PumpExtendedBolusTransaction
-import info.nightscout.androidaps.database.transactions.pump.PumpInsertMealBolusTransaction
-import info.nightscout.androidaps.database.transactions.pump.PumpInsertUpdateBolusTransaction
-import info.nightscout.androidaps.database.transactions.pump.PumpInsertUpdateTemporaryBasalTransaction
 import org.slf4j.LoggerFactory
 import java.util.*
 
 class MedtronicHistoryProcessTransaction(
         val pumpSerial: String,
-        val tddList : List<PumpHistoryEntry>,
-        val bolusList : List<PumpHistoryEntry>,
-        val temporaryBasalList : List<PumpHistoryEntry>,
+        val tddList : MutableList<PumpHistoryEntry>,
+        val bolusList : MutableList<PumpHistoryEntry>,
+        val temporaryBasalList : MutableList<PumpHistoryEntry>,
         var oldTbrEntryEdited: Boolean,
-        val suspendResumeList : List<TempBasalProcessDTO>,
+        val suspendResumeList : List<MDTTempBasalProcess>,
         val logEnabledInput : Boolean,
         val pumpTime : PumpClock
 ) : Transaction<Unit>() {
@@ -34,7 +28,7 @@ class MedtronicHistoryProcessTransaction(
 
     override  fun run() {
 
-        // TDD FIXME
+        // TDD
         if (doesCollectionHaveData(tddList)) {
             try {
                 processTDDs(tddList);
@@ -45,7 +39,7 @@ class MedtronicHistoryProcessTransaction(
         }
 
 
-        // Bolus FIXME
+        // Bolus FIXME Done, missing editing of carbs
         if (doesCollectionHaveData(bolusList)) {
             try {
                 processBolusEntries(bolusList);
@@ -77,12 +71,12 @@ class MedtronicHistoryProcessTransaction(
 
     }
 
-    fun doesCollectionHaveData(checkList: List<Any>?) : Boolean {
+    private fun doesCollectionHaveData(checkList: List<Any>?) : Boolean {
         return (checkList!=null && checkList.isNotEmpty())
     }
 
 
-    fun processTDDs(tddsIn: List<PumpHistoryEntry>) : Unit {
+    private fun processTDDs(tddsIn: List<PumpHistoryEntry>) : Unit {
 
         val tddsDb = database.totalDailyDoseDao.getTotalDailyDosesByCountAndPump(3, InterfaceIDs.PumpType.MEDTRONIC, pumpSerial)
 
@@ -112,29 +106,24 @@ class MedtronicHistoryProcessTransaction(
                     interfaceIDs.pumpType = InterfaceIDs.PumpType.MEDTRONIC
                     interfaceIDs.pumpSerial = pumpSerial
                     interfaceIDs.pumpId = totalsDTO.pumpId
-                    changes.add(this)
                 })
 
             } else {
 
-                if (!totalsDTO.doesEqual(tddDbEntry)) {
-                    totalsDTO.setTDD(tddDbEntry)
+                if (!totalsDTO.isEqual(tddDbEntry)) {
 
                     if (logEnabled)
-                        LOG.debug("TDD Edit: {}", tddDbEntry)
+                        LOG.debug("TDD Edit: Before: {}", tddDbEntry)
 
-                    database.totalDailyDoseDao.updateExistingEntry(TotalDailyDose(
-                            timestamp = tddDbEntry.timestamp,
-                            utcOffset = tddDbEntry.utcOffset,
-                            basalAmount = totalsDTO.basalInsulin,
-                            bolusAmount = totalsDTO.bolusInsulin,
-                            totalAmount = totalsDTO.totalInsulin
-                    ).apply {
-                        interfaceIDs.pumpType = InterfaceIDs.PumpType.MEDTRONIC
-                        interfaceIDs.pumpSerial = pumpSerial
-                        interfaceIDs.pumpId = totalsDTO.pumpId
-                        changes.add(this)
-                    })
+                    tddDbEntry.basalAmount = totalsDTO.basalInsulin
+                    tddDbEntry.bolusAmount = totalsDTO.bolusInsulin
+                    tddDbEntry.totalAmount = totalsDTO.totalInsulin
+                    tddDbEntry.interfaceIDs.pumpId = totalsDTO.pumpId
+
+                    if (logEnabled)
+                        LOG.debug("TDD Edit: After: {}", tddDbEntry)
+
+                    database.totalDailyDoseDao.updateExistingEntry(tddDbEntry)
                 }
             }
         }
@@ -142,7 +131,7 @@ class MedtronicHistoryProcessTransaction(
     }
 
 
-    fun processBolusEntries(entryList: List<PumpHistoryEntry>?) : Unit {
+    private fun processBolusEntries(entryList: MutableList<PumpHistoryEntry>) : Unit {
         val oldestTimestamp = getOldestTimestamp(entryList)
 
         val entriesFromHistory = getDatabaseEntriesByLastTimestamp(oldestTimestamp, ProcessHistoryRecord.Bolus)
@@ -167,7 +156,7 @@ class MedtronicHistoryProcessTransaction(
             }
         } else {
             for (treatment in entryList) {
-                val treatmentDb = findDbEntry(treatment, entriesFromHistory!!)
+                val treatmentDb = findDbEntry(treatment, entriesFromHistory)
                 if (logEnabled)
                     LOG.debug("Add Bolus {} - (entryFromDb={}) ", treatment, treatmentDb)
 
@@ -178,7 +167,7 @@ class MedtronicHistoryProcessTransaction(
     }
 
 
-    fun processTBREntries(entryList: List<PumpHistoryEntry>) : Unit {
+    private fun processTBREntries(entryList: List<PumpHistoryEntry>) : Unit {
 
         val oldestTimestamp = getOldestTimestamp(entryList)
 
@@ -189,20 +178,20 @@ class MedtronicHistoryProcessTransaction(
                     gson.toJson(entriesFromHistory))
 
 
-        var processDTO: TempBasalProcessDTO? = null
-        val processList = ArrayList<TempBasalProcessDTO>()
+        var processDTO: MDTTempBasalProcess? = null
+        val processList = ArrayList<MDTTempBasalProcess>()
 
         for (treatment in entryList) {
 
-            val tbr2 = treatment.getDecodedDataEntry("Object") as TempBasalPair
+            val tbr2 = treatment.dataObject as MDTTemporaryBasal
 
-            if (tbr2!!.isCancelTBR()) {
+            if (tbr2.isCancelTBR()) {
 
                 if (processDTO != null) {
-                    processDTO.itemTwo = treatment
+                    processDTO.itemTwo = tbr2
 
                     if (oldTbrEntryEdited) {
-                        processDTO.processOperation = TempBasalProcessDTO.Operation.Edit
+                        processDTO.processOperation = MDTTempBasalProcess.Operation.Edit
                         oldTbrEntryEdited = false
                     }
                 } else {
@@ -213,9 +202,9 @@ class MedtronicHistoryProcessTransaction(
                     processList.add(processDTO)
                 }
 
-                processDTO = TempBasalProcessDTO()
-                processDTO.itemOne = treatment
-                processDTO.processOperation = TempBasalProcessDTO.Operation.Add
+                processDTO = MDTTempBasalProcess()
+                processDTO.itemOne = tbr2
+                processDTO.processOperation = MDTTempBasalProcess.Operation.Add
             }
         }
 
@@ -228,44 +217,46 @@ class MedtronicHistoryProcessTransaction(
 
             for (tempBasalProcessDTO in processList) {
 
-                if (tempBasalProcessDTO.processOperation == TempBasalProcessDTO.Operation.Edit) {
+                if (tempBasalProcessDTO.processOperation == MDTTempBasalProcess.Operation.Edit) {
                     // edit
-                    val tempBasal = findTempBasalWithPumpId(tempBasalProcessDTO.itemOne.getPumpId()!!, entriesFromHistory!!)
+                    val tempBasal = findTempBasalWithPumpId(tempBasalProcessDTO.itemOne!!.pumpId, entriesFromHistory)
 
                     if (tempBasal != null) {
 
-                        tempBasal!!.durationInMinutes = tempBasalProcessDTO.getDuration()
+                        tempBasal.duration = tempBasalProcessDTO.calculateDuration()
 
-                        databaseHelper.createOrUpdate(tempBasal);
+                        database.temporaryBasalDao.updateExistingEntry(tempBasal)
 
                         if (logEnabled)
-                            LOG.debug("Edit " + ProcessHistoryRecord.TBR.getDescription() + " - (entryFromDb={}) ", tempBasal)
+                            LOG.debug("Edit " + ProcessHistoryRecord.TBR.description + " - (entryFromDb={}) ", tempBasal)
                     } else {
-                        LOG.error("TempBasal not found. Item: {}", tempBasalProcessDTO.itemOne)
+                        LOG.error("TempBasal not found, can't edit. Item: {}", tempBasalProcessDTO.itemOne)
                     }
 
                 } else {
                     // add
 
-                    val treatment = tempBasalProcessDTO.itemOne
+                    val tbr2 = tempBasalProcessDTO.itemOne
 
-                    val tbr2 = treatment.getDecodedData().get("Object") as TempBasalPair
-                    tbr2.setDurationMinutes(tempBasalProcessDTO.getDuration())
+                    //val tbr2 = treatment.getDecodedData().get("Object") as TempBasalPair
+                    tbr2!!.duration = tempBasalProcessDTO.calculateDuration()
 
-                    val tempBasal = findTempBasalWithPumpId(tempBasalProcessDTO.itemOne.getPumpId()!!, entriesFromHistory!!)
+                    val tempBasal = findTempBasalWithPumpId(tempBasalProcessDTO.itemOne!!.pumpId, entriesFromHistory)
 
                     if (tempBasal == null) {
-                        val treatmentDb = findDbEntry(treatment, entriesFromHistory!!)
+                        val treatmentDb = findDbEntry(tbr2, entriesFromHistory)
 
                         if (logEnabled)
-                            LOG.debug("Add " + ProcessHistoryRecord.TBR.getDescription() + " {} - (entryFromDb={}) ", treatment, treatmentDb)
+                            LOG.debug("Add " + ProcessHistoryRecord.TBR.description + " {} - (entryFromDb={}) ", tbr2, treatmentDb)
 
-                        addTBR(treatment, treatmentDb as info.nightscout.androidaps.database.entities.TemporaryBasal)
+                        addTBR(tbr2, treatmentDb as TemporaryBasal?)
                     } else {
                         // this shouldn't happen
-                        if (tempBasal!!.durationInMinutes != tempBasalProcessDTO.getDuration()) {
+                        if (tempBasal.duration != tempBasalProcessDTO.calculateDuration()) {
                             LOG.debug("Found entry with wrong duration (shouldn't happen)... updating")
-                            tempBasal!!.durationInMinutes = tempBasalProcessDTO.getDuration()
+
+                            tempBasal.duration = tempBasalProcessDTO.calculateDuration()
+                            database.temporaryBasalDao.updateExistingEntry(tempBasal)
                         }
 
                     }
@@ -277,32 +268,18 @@ class MedtronicHistoryProcessTransaction(
     }
 
 
-    fun processSuspends(tempBasalProcessList: List<TempBasalProcessDTO>?) : Unit {
+    private fun processSuspends(tempBasalProcessList: List<MDTTempBasalProcess>) {
         for (tempBasalProcess in tempBasalProcessList) {
-            //TODO: Fix Medtronic driver
-            //TemporaryBasal tempBasal = databaseHelper.findTempBasalByPumpId(tempBasalProcess.itemOne.getPumpId());
-            var tempBasal: TemporaryBasal? = databaseHelper.findTempBasalByPumpId(tempBasalProcess.itemOne.getPumpId())
+
+            var tempBasal: TemporaryBasal? = database.temporaryBasalDao.getTemporaryBasalByPumpId(InterfaceIDs.PumpType.MEDTRONIC, pumpSerial, tempBasalProcess.itemOne!!.pumpId)
 
             if (tempBasal == null) {
-                // add
-                tempBasal = TemporaryBasal()
-                tempBasal.date = tryToGetByLocalTime(tempBasalProcess.itemOne.atechDateTime)
+                var timestamp = tryToGetByLocalTime(tempBasalProcess.itemOne!!.atechDateTime)
 
-                tempBasal.source = Source.PUMP
-                tempBasal.pumpId = tempBasalProcess.itemOne.getPumpId()!!
-                tempBasal.durationInMinutes = tempBasalProcess.getDuration()
-                tempBasal.absoluteRate = 0.0
-                tempBasal.isAbsolute = true
-
-                tempBasalProcess.itemOne.setLinkedObject(tempBasal)
-                tempBasalProcess.itemTwo.setLinkedObject(tempBasal)
-
-                //TODO: Fix Medtronic driver
-                databaseHelper.createOrUpdate(tempBasal);
+                addTemporaryBasalDb(timestamp, 0.0, tempBasalProcess.calculateDuration(), tempBasalProcess.itemOne!!.pumpId)
 
             }
         }
-
     }
 
 
@@ -319,8 +296,6 @@ class MedtronicHistoryProcessTransaction(
             }
         }
 
-        //LocalDateTime oldestEntryTime = null;
-
         try {
 
             val oldestEntryTime = medtronicUtil.toGregorianCalendar(dt)
@@ -333,21 +308,16 @@ class MedtronicHistoryProcessTransaction(
             return 8 // default return of 8 minutes
         }
 
-
     }
 
 
-    private fun getDatabaseEntriesByLastTimestamp(startTimestamp: Long, processHistoryRecord: ProcessHistoryRecord): List<DBEntryWithTime>? {
+    private fun getDatabaseEntriesByLastTimestamp(startTimestamp: Long, processHistoryRecord: ProcessHistoryRecord): MutableList<out DBEntryWithTime> {
         return if (processHistoryRecord == ProcessHistoryRecord.Bolus) {
-            return database.bolusDao.getBolusesStartingWithTimeForPump(startTimestamp, InterfaceIDs.PumpType.MEDTRONIC, pumpSerial.toLong())
+            database.bolusDao.getBolusesStartingWithTimeForPump(startTimestamp, InterfaceIDs.PumpType.MEDTRONIC, pumpSerial)
         } else {
-            //TODO: Fix Medtronic driver
-            //return databaseHelper.getTemporaryBasalsDataFromTime(startTimestamp, true);
-            null
+            database.temporaryBasalDao.getTemporaryBasalsStartingWithTimeForPump(startTimestamp, InterfaceIDs.PumpType.MEDTRONIC, pumpSerial)
         }
     }
-
-
 
 
     private fun findTDD(atechDateTime: Long, tddsDb: List<TotalDailyDose>): TotalDailyDose? {
@@ -362,12 +332,13 @@ class MedtronicHistoryProcessTransaction(
         return null
     }
 
+
     private fun tryToGetByLocalTime(atechDateTime: Long): Long {
         return medtronicUtil.toMillisFromATD(atechDateTime)
     }
 
 
-    private fun filterOutAlreadyAddedEntries(entryList: List<PumpHistoryEntry>, treatmentsFromHistory: List<out DBEntryWithTime>) {
+    private fun filterOutAlreadyAddedEntries(entryList: MutableList<PumpHistoryEntry>, treatmentsFromHistory: MutableList<out DBEntryWithTime>) {
 
         if (!doesCollectionHaveData(treatmentsFromHistory))
             return
@@ -376,12 +347,14 @@ class MedtronicHistoryProcessTransaction(
 
         for (treatment in treatmentsFromHistory) {
 
-            if (treatment.interfaceIDs.pumpId !=null && treatment.interfaceIDs.pumpId.toLong() > 0) {
+            var pumpId : Long? = treatment.interfaceIDs.pumpId
+
+            if (pumpId !=null && pumpId > 0) {
 
                 var selectedBolus: PumpHistoryEntry? = null
 
                 for (bolus in entryList) {
-                    if (bolus.pumpId === treatment.interfaceIDs.pumpId) {
+                    if (bolus.pumpId == pumpId) {
                         selectedBolus = bolus
                         break
                     }
@@ -399,193 +372,173 @@ class MedtronicHistoryProcessTransaction(
     }
 
 
-    private fun addBolus(bolus: PumpHistoryEntry, treatment: Bolus?) {
+    private fun addBolus(bolus: PumpHistoryEntry, bolusDb: Bolus?) {
 
-        val bolusDTO = bolus.dataObject as BolusDTO
+        val bolusDTO = bolus.dataObject as MDTBolus
 
-        if (treatment ==
-                null) {
+        var timestamp = tryToGetByLocalTime(bolus.atechDateTime)
 
-            when (bolusDTO.getBolusType()) {
-                PumpBolusType.Normal -> {
-                    val detailedBolusInfo = DetailedBolusInfo()
+        if (bolusDb==null) {
 
-                    detailedBolusInfo.date = tryToGetByLocalTime(bolus.atechDateTime)
-                    detailedBolusInfo.source = Source.PUMP
-                    detailedBolusInfo.pumpId = bolus.getPumpId()!!
-                    detailedBolusInfo.insulin = bolusDTO.getDeliveredAmount()!!
+            when (bolusDTO.bolusType) {
+                MDTBolus.Type.STANDARD -> {
 
-                    addCarbsFromEstimate(detailedBolusInfo, bolus)
-
-                    bolus.setLinkedObject(detailedBolusInfo)
-
-                    BlockingAppRepository.runTransactionForResult(PumpInsertMealBolusTransaction(
-                            tryToGetByLocalTime(bolus.atechDateTime),
-                            bolusDTO.getDeliveredAmount()!!,
-                            detailedBolusInfo.carbs,
-                            info.nightscout.androidaps.database.entities.Bolus.Type.NORMAL,
-                            InterfaceIDs.PumpType.MEDTRONIC,
-                            getPumpSerial(),
-                            bolus.getPumpId()!!, null
-                    ))
+                    addBolusDb(timestamp,
+                            bolusDTO.amount,
+                            bolusDTO.carbs,
+                            bolusDTO.pumpId,
+                            null
+                    )
 
                     if (logEnabled)
-                        LOG.debug("addBolus - [date={},pumpId={}, insulin={}, newRecord={}]", detailedBolusInfo.date,
-                                detailedBolusInfo.pumpId, detailedBolusInfo.insulin, detailedBolusInfo)
+                        LOG.debug("addBolus - [date={},pumpId={}, insulin={}]", timestamp,
+                                bolusDTO.pumpId, bolusDTO.amount)
                 }
 
-                PumpBolusType.Audio, PumpBolusType.Extended -> {
-                    val extendedBolus = ExtendedBolus()
-                    extendedBolus.date = tryToGetByLocalTime(bolus.atechDateTime)
-                    extendedBolus.source = Source.PUMP
-                    extendedBolus.insulin = bolusDTO.getDeliveredAmount()!!
-                    extendedBolus.pumpId = bolus.getPumpId()!!
-                    extendedBolus.isValid = true
-                    extendedBolus.durationInMinutes = bolusDTO.getDuration()!!
+                MDTBolus.Type.EXTENDED -> {
 
-                    bolus.setLinkedObject(extendedBolus)
-
-                    BlockingAppRepository.runTransactionForResult(PumpExtendedBolusTransaction(
-                            tryToGetByLocalTime(bolus.atechDateTime),
-                            bolusDTO.getDeliveredAmount()!!,
-                            0L,
-                            bolusDTO.getDuration()!!,
-                            false,
-                            InterfaceIDs.PumpType.MEDTRONIC,
-                            getPumpSerial(),
-                            bolus.getPumpId()!!
-                    ))
+                    addBolusDb(timestamp,
+                            bolusDTO.amount,
+                            bolusDTO.carbs,
+                            bolusDTO.pumpId,
+                            bolusDTO.duration
+                    )
 
                     if (logEnabled)
-                        LOG.debug("addBolus - Extended [date={},pumpId={}, insulin={}, duration={}]", extendedBolus.date,
-                                extendedBolus.pumpId, extendedBolus.insulin, extendedBolus.durationInMinutes)
+                        LOG.debug("addBolus - Extended [date={},pumpId={}, insulin={}, duration={}]", timestamp,
+                                bolusDTO.pumpId, bolusDTO.amount, bolusDTO.duration)
 
                 }
             }
 
         } else {
 
-            var detailedBolusInfo = DetailedBolusInfoStorage.findDetailedBolusInfo(treatment!!.date)
-            if (detailedBolusInfo == null) {
-                detailedBolusInfo = DetailedBolusInfo()
+            if (!bolusDTO.isEqual(bolusDb)) {
+                bolusDb.amount = bolusDTO.amount
+                bolusDb.interfaceIDs.pumpId = bolusDTO.pumpId
             }
 
-            detailedBolusInfo!!.date = treatment!!.date
-            detailedBolusInfo!!.source = Source.PUMP
-            detailedBolusInfo!!.pumpId = bolus.getPumpId()!!
-            detailedBolusInfo!!.insulin = bolusDTO.getDeliveredAmount()!!
-            detailedBolusInfo!!.carbs = treatment!!.carbs
-
-            addCarbsFromEstimate(detailedBolusInfo, bolus)
-
-            BlockingAppRepository.runTransactionForResult(PumpInsertUpdateBolusTransaction(
-                    tryToGetByLocalTime(bolus.atechDateTime),
-                    bolusDTO.getDeliveredAmount()!!,
-                    detailedBolusInfo!!.carbs,
-                    info.nightscout.androidaps.database.entities.Bolus.Type.NORMAL,
-                    InterfaceIDs.PumpType.MEDTRONIC,
-                    getPumpSerial(),
-                    bolus.getPumpId()!!, null
-            ))
-
-            bolus.setLinkedObject(detailedBolusInfo)
+            database.bolusDao.updateExistingEntry(bolusDb)
 
             if (logEnabled)
-                LOG.debug("editBolus - [date={},pumpId={}, insulin={}, newRecord={}]", detailedBolusInfo!!.date,
-                        detailedBolusInfo!!.pumpId, detailedBolusInfo!!.insulin, detailedBolusInfo)
+                LOG.debug("editBolus - [date={},pumpId={}, insulin={}]", timestamp,
+                        bolusDTO.pumpId, bolusDTO.amount)
 
         }
     }
 
 
-    private fun addTBR(treatment: PumpHistoryEntry, temporaryBasalDbInput: TemporaryBasal?) {
+    private fun addBolusDb(timestamp: Long, insulin: Double, carbs: Double, pumpId: Long, duration: Long?) {
 
-        val tbr = treatment.dataObject as MDTTemporaryBasal
+        val utcOffset = TimeZone.getDefault().getOffset(timestamp).toLong()
 
-        var operation = "editTBR"
+        if (duration==null) {
 
-        var date: Long = 0
-
-        if (temporaryBasalDbInput == null) {
-            date = tryToGetByLocalTime(treatment.atechDateTime)
-            operation = "addTBR"
+            var entries = 1
+            val bolusDBId = database.bolusDao.insertNewEntry(Bolus(
+                    timestamp = timestamp,
+                    utcOffset = utcOffset,
+                    amount = insulin,
+                    type = Bolus.Type.NORMAL,
+                    basalInsulin = false
+            ).apply {
+                interfaceIDs.pumpType = InterfaceIDs.PumpType.MEDTRONIC
+                interfaceIDs.pumpSerial = pumpSerial
+                interfaceIDs.pumpId = pumpId
+            })
+            val carbsDBId = if (carbs > 0) {
+                entries += 1
+                database.carbsDao.insertNewEntry(Carbs(
+                        timestamp = timestamp,
+                        utcOffset = utcOffset,
+                        amount = carbs,
+                        duration = 0
+                ).apply {
+                })
+            } else {
+                null
+            }
+            if (entries > 1) {
+                database.mealLinkDao.insertNewEntry(MealLink(
+                        bolusId = bolusDBId,
+                        carbsId = carbsDBId,
+                        bolusCalcResultId = null
+                ).apply {
+                })
+            }
         } else {
-            date = temporaryBasalDbInput.timestamp
-        }
 
-        val temporaryBasalX = TemporaryBasal()
-        temporaryBasalX.source = Source.PUMP
-        temporaryBasalX.pumpId = treatment.getPumpId()!!
-        temporaryBasalX.durationInMinutes = tbr.getDurationMinutes()
-        temporaryBasalX.absoluteRate = tbr.getInsulinRate()
-        temporaryBasalX.isAbsolute = !tbr.isPercent()
-        temporaryBasalX.date = date
-
-        treatment.setLinkedObject(temporaryBasalX)
-
-
-        BlockingAppRepository.runTransactionForResult(PumpInsertUpdateTemporaryBasalTransaction(
-                date,
-                0L,
-                tbr.getDurationMinutes().toLong(),
-                !tbr.isPercent(),
-                tbr.getInsulinRate(),
-                InterfaceIDs.PumpType.MEDTRONIC,
-                getPumpSerial(),
-                treatment.getPumpId()!!
-        ))
-
-
-        var currentTemporaryBasal : TemporaryBasal? = null
-
-        var duration = tbr.duration!! * 60000L
-
-        // TODO
-
-        currentTemporaryBasal = database.temporaryBasalDao.getTemporaryBasalByPumpId(pumpType, pumpSerial, treatment.pumpId)
-
-        if (currentTemporaryBasal==null) {
-            database.temporaryBasalDao.insertNewEntry(TemporaryBasal(
+            database.extendedBolusDao.insertNewEntry(ExtendedBolus(
                     timestamp = timestamp,
                     utcOffset = TimeZone.getDefault().getOffset(timestamp).toLong(),
-                    type = TemporaryBasal.Type.NORMAL,
-                    absolute = absolute,
-                    rate = rate,
-                    duration = duration
+                    amount = insulin,
+                    duration = (duration * 60000),
+                    emulatingTempBasal = false
             ).apply {
-                interfaceIDs.pumpType = pumpType
+                interfaceIDs.pumpType = InterfaceIDs.PumpType.MEDTRONIC
                 interfaceIDs.pumpSerial = pumpSerial
                 interfaceIDs.pumpId = pumpId
-                changes.add(this)
             })
-        } else {
-            database.temporaryBasalDao.updateExistingEntry(TemporaryBasal(
-                    timestamp = currentTemporaryBasal.timestamp,
-                    utcOffset = currentTemporaryBasal.utcOffset,
-                    type = currentTemporaryBasal.type,
-                    absolute = absolute,
-                    rate = rate,
-                    duration = duration
-            ).apply {
-                interfaceIDs.pumpType = pumpType
-                interfaceIDs.pumpSerial = pumpSerial
-                interfaceIDs.pumpId = pumpId
-                changes.add(this)
-            })
+
         }
 
+    }
 
+
+    private fun findTempBasalWithPumpId(pumpId: Long, entriesFromHistory: List<DBEntry>): TemporaryBasal? {
+
+        for (dbObjectBase in entriesFromHistory) {
+            val tbr = dbObjectBase as TemporaryBasal
+
+            if (tbr.interfaceIDs.pumpId == pumpId) {
+                return tbr
+            }
+        }
+
+        var tempBasal = database.temporaryBasalDao.getTemporaryBasalByPumpId(InterfaceIDs.PumpType.MEDTRONIC, pumpSerial, pumpId)
+        return tempBasal
+    }
+
+
+    private fun addTBR(treatment: MDTTemporaryBasal, temporaryBasalDb: TemporaryBasal?) {
+
+        var operation = "addTBR"
+
+        if (temporaryBasalDb == null) {
+            addTemporaryBasalDb(tryToGetByLocalTime(treatment.atechDateTime), treatment.amount, treatment.duration, treatment.pumpId)
+            operation = "addTBR"
+        } else {
+
+            temporaryBasalDb.duration = treatment.duration
+            temporaryBasalDb.interfaceIDs.pumpId = treatment.pumpId
+            operation = "editTBR"
+
+            database.temporaryBasalDao.updateExistingEntry(temporaryBasalDb)
+        }
 
         if (logEnabled)
             LOG.debug("$operation - [date={},pumpId={}, rate={} {}, duration={}]", //
-                    temporaryBasalX.date, //
-                    temporaryBasalX.pumpId, //
-                    if (temporaryBasalX.isAbsolute)
-                        String.format(Locale.ENGLISH, "%.2f", temporaryBasalX.absoluteRate)
-                    else
-                        String.format(Locale.ENGLISH, "%d", temporaryBasalX.percentRate), //
-                    if (temporaryBasalX.isAbsolute) "U/h" else "%", //
-                    temporaryBasalX.durationInMinutes)
+                    treatment.atechDateTime,
+                    treatment.pumpId, //
+                    String.format(Locale.ENGLISH, "%.2f", treatment.amount),
+                    "U/h", //
+                    treatment.duration)
+    }
+
+
+    private fun addTemporaryBasalDb(timestamp: Long, rate: Double, durationMin: Long, pumpId: Long) {
+        database.temporaryBasalDao.insertNewEntry(TemporaryBasal(
+                timestamp = timestamp,
+                utcOffset = TimeZone.getDefault().getOffset(timestamp).toLong(),
+                type = TemporaryBasal.Type.NORMAL,
+                absolute = true,
+                rate = rate,
+                duration = (durationMin * 60000L)
+        ).apply {
+            interfaceIDs.pumpType = InterfaceIDs.PumpType.MEDTRONIC
+            interfaceIDs.pumpSerial = pumpSerial
+            interfaceIDs.pumpId = pumpId
+        })
     }
 
 
@@ -656,11 +609,11 @@ class MedtronicHistoryProcessTransaction(
 
 
     data class PumpHistoryEntry(
-            val atechDateTime: Long,
+            override val atechDateTime: Long,
             val type: EntryType,
             val pumpId: Long,
             val dataObject: Any
-    ) {
+    ) : DbObjectMDT(atechDateTime) {
         enum class EntryType {
             TDD,
             Bolus,
@@ -677,29 +630,37 @@ class MedtronicHistoryProcessTransaction(
 
     data class MDTTemporaryBasal(
             override val atechDateTime: Long,
-            val start: Boolean?,
-            val eventId: Long?,
             val timestamp: Long?,
-            val duration: Long?,
-            val percentage: Int?
-    ) : DbObjectMDT(atechDateTime)
+            var duration: Long,
+            var amount: Double,
+            var pumpId: Long
+    ) : DbObjectMDT(atechDateTime) {
+
+        fun isCancelTBR() : Boolean {
+            var mu = MedtronicUtilKotlin()
+            return mu.isSame(amount, 0.0) && duration == 0L
+        }
+
+
+    }
 
     data class MDTBolus(
             override val atechDateTime: Long,
-            val start: Boolean,
-            val eventId: Long,
-            val type: Type,
-            val timestamp: Long,
-            val bolusId: Int,
-            val immediateAmount: Double,
-            val duration: Long,
-            val extendedAmount: Double,
+            val bolusType: Type,
+            val amount: Double,
+            val carbs: Double,
+            val duration: Long = 0,
             val pumpId: Long
     ) : DbObjectMDT(atechDateTime) {
         enum class Type {
             STANDARD,
             MULTIWAVE,
             EXTENDED
+        }
+
+        fun isEqual(bolus: Bolus) : Boolean {
+            return bolus.amount == amount &&
+                    bolus.interfaceIDs.pumpId == pumpId;
         }
     }
 
@@ -709,7 +670,17 @@ class MedtronicHistoryProcessTransaction(
             val basalInsulin: Double,
             val totalInsulin: Double,
             val pumpId: Long
-    ) : DbObjectMDT(atechDateTime)
+    ) : DbObjectMDT(atechDateTime) {
+
+        fun isEqual(totalDailyDose: TotalDailyDose) : Boolean {
+            return totalDailyDose.basalAmount == basalInsulin &&
+                    totalDailyDose.bolusAmount == bolusInsulin &&
+                    totalDailyDose.totalAmount == totalInsulin &&
+                    totalDailyDose.interfaceIDs.pumpId == pumpId;
+        }
+
+
+    }
 
 
     data class PumpClock(
@@ -717,7 +688,7 @@ class MedtronicHistoryProcessTransaction(
     )
 
 
-    data class TempBasalProcessDTO(
+    data class MDTTempBasalProcess(
             var itemOne: MDTTemporaryBasal? = null,
             var itemTwo: MDTTemporaryBasal? = null,
             var processOperation : Operation = Operation.Undefined
@@ -727,6 +698,23 @@ class MedtronicHistoryProcessTransaction(
             Add,
             Edit
         }
+
+        fun calculateDuration() : Long {
+
+            var duration = 0L
+            var medtronicUtil = MedtronicUtilKotlin()
+
+            if (itemTwo == null) {
+                duration = itemOne!!.duration!!
+            } else {
+                duration = medtronicUtil.getATechDateDiferenceAsMinutes(itemOne!!.atechDateTime, itemTwo!!.atechDateTime) * 1L
+            }
+
+            duration *= 60000L
+
+            return duration
+        }
+
     }
 
 

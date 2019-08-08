@@ -35,5 +35,8 @@ interface TemporaryBasalDao : BaseDao<TemporaryBasal> {
     @Query("SELECT * FROM $TABLE_TEMPORARY_BASALS WHERE pumpType = :pumpType AND pumpSerial = :pumpSerial AND timestamp = :timestamp AND referenceId IS NULL ORDER BY timestamp DESC LIMIT 1")
     fun getTemporaryBasalByTimeAndPump(timestamp: Long, pumpType: InterfaceIDs.PumpType, pumpSerial: String): TemporaryBasal?
 
+    @Query("SELECT * FROM $TABLE_TEMPORARY_BASALS WHERE pumpType = :pumpType AND pumpSerial = :pumpSerial AND timestamp >= :timestamp AND referenceId IS NULL ORDER BY timestamp ASC")
+    fun getTemporaryBasalsStartingWithTimeForPump(timestamp: Long, pumpType: InterfaceIDs.PumpType, pumpSerial: String): MutableList<TemporaryBasal>
+
 
 }

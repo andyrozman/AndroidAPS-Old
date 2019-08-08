@@ -9,7 +9,8 @@ import java.util.*
 
 class PumpInsertTemporaryBasalTransaction(
         val timestamp: Long,
-        val duration: Long,
+        val durationMs: Long = 0,
+        val durationMin: Long = 0,
         val absolute: Boolean,
         val rate: Double,
         val pumpType: InterfaceIDs.PumpType,
@@ -18,6 +19,13 @@ class PumpInsertTemporaryBasalTransaction(
 ) : Transaction<Unit>() {
 
     override fun run() {
+
+        var duration = 0L
+
+        if (durationMs>0)
+            duration = durationMs
+        else
+            duration = durationMin * 60000L
 
         database.temporaryBasalDao.insertNewEntry(TemporaryBasal(
                 timestamp = timestamp,
@@ -30,7 +38,6 @@ class PumpInsertTemporaryBasalTransaction(
             interfaceIDs.pumpType = pumpType
             interfaceIDs.pumpSerial = pumpSerial
             interfaceIDs.pumpId = pumpId
-            changes.add(this)
         })
     }
 }
