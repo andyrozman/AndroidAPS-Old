@@ -4,6 +4,7 @@ import org.joda.time.LocalDateTime
 import org.joda.time.Minutes
 import org.slf4j.LoggerFactory
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 class MedtronicUtilKotlin {
 
@@ -55,8 +56,8 @@ class MedtronicUtilKotlin {
      * @param atechDateTime
      * @return
      */
-    fun toGregorianCalendar(atechDateTime: Long): GregorianCalendar {
-        var atechDateTime = atechDateTime
+    fun toGregorianCalendar(atechDateTimeIn: Long): GregorianCalendar {
+        var atechDateTime = atechDateTimeIn
         val year = (atechDateTime / 10000000000L).toInt()
         atechDateTime -= year * 10000000000L
 
@@ -84,11 +85,18 @@ class MedtronicUtilKotlin {
     }
 
 
-    fun getATechDateDiferenceAsMinutes(date1: Long?, date2: Long?): Int {
+    fun getATechDateDiferenceAsMinutes(date1: Long, date2: Long): Int {
 
-        val minutes = Minutes.minutesBetween(toLocalDateTime(date1!!), toLocalDateTime(date2!!))
+        val d1 = toGregorianCalendar(date1)
+        val d2 = toGregorianCalendar(date2)
 
-        return minutes.getMinutes()
+        val diffInMillisec = d1.timeInMillis - d2.timeInMillis
+
+        val minutes = TimeUnit.MILLISECONDS.toMinutes(diffInMillisec)
+
+        minutes.toInt()
+
+        return minutes.toInt()
     }
 
 
@@ -96,39 +104,6 @@ class MedtronicUtilKotlin {
         val diff = d1!! - d2!!
 
         return Math.abs(diff) <= 0.000001
-    }
-
-
-    fun toLocalDateTime(atechDateTime: Long): LocalDateTime {
-        var atechDateTime = atechDateTime
-        val year = (atechDateTime / 10000000000L).toInt()
-        atechDateTime -= year * 10000000000L
-
-        val month = (atechDateTime / 100000000L).toInt()
-        atechDateTime -= month * 100000000L
-
-        val dayOfMonth = (atechDateTime / 1000000L).toInt()
-        atechDateTime -= dayOfMonth * 1000000L
-
-        val hourOfDay = (atechDateTime / 10000L).toInt()
-        atechDateTime -= hourOfDay * 10000L
-
-        val minute = (atechDateTime / 100L).toInt()
-        atechDateTime -= minute * 100L
-
-        val second = atechDateTime.toInt()
-
-        try {
-            return LocalDateTime(year, month, dayOfMonth, hourOfDay, minute, second)
-        } catch (ex: Exception) {
-            LOG.error("Error creating LocalDateTime from values [atechDateTime={}, year={}, month={}, day={}, hour={}, minute={}, second={}]. Exception: {}", atechDateTime, year, month, dayOfMonth, hourOfDay, minute, second, ex.message)
-            //return null;
-            throw ex
-        }
-
-
-
-
     }
 
 

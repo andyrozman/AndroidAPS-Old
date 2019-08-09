@@ -171,9 +171,14 @@ class MedtronicHistoryProcessTransaction(
 
         val entriesFromHistory = getDatabaseEntriesByLastTimestamp(oldestTimestamp, ProcessHistoryRecord.TBR)
 
-        if (logEnabled)
+        if (logEnabled) {
             LOG.debug(getLogPrefix() + ProcessHistoryRecord.TBR.description + " List (before filter): {}, FromDb={}", gson.toJson(entryList),
                     gson.toJson(entriesFromHistory))
+
+            LOG.debug(getLogPrefix() + ProcessHistoryRecord.TBR.description + " List (before filter) [toString]: {}, FromDb={}", entryList.toString(),
+                    entriesFromHistory.toString())
+
+        }
 
 
         var processDTO: MDTTempBasalProcess? = null

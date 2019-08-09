@@ -51,7 +51,6 @@ dependencies {
 
     implementation "org.slf4j:slf4j-api:1.7.21"
     implementation "com.google.code.gson:gson:2.8.5"
-    implementation "net.danlew:android.joda:2.9.9.1"
 
     androidTestImplementation "junit:junit:4.12"
     androidTestImplementation 'androidx.test:core:1.2.0'
