@@ -48,6 +48,7 @@ import info.nightscout.androidaps.logging.L;
 import info.nightscout.androidaps.plugins.aps.loop.events.EventLoopSetLastRunGui;
 import info.nightscout.androidaps.plugins.aps.loop.events.EventLoopUpdateGui;
 import info.nightscout.androidaps.plugins.aps.loop.events.EventNewOpenLoopNotification;
+import info.nightscout.androidaps.plugins.bus.RxBus;
 import info.nightscout.androidaps.plugins.configBuilder.ConfigBuilderPlugin;
 import info.nightscout.androidaps.plugins.configBuilder.ProfileFunctions;
 import info.nightscout.androidaps.plugins.constraints.objectives.ObjectivesPlugin;
@@ -279,7 +280,7 @@ public class LoopPlugin extends PluginBase {
                 String message = MainApp.gs(R.string.loopdisabled) + "\n" + loopEnabled.getReasons();
                 if (L.isEnabled(L.APS))
                     log.debug(message);
-                MainApp.bus().post(new EventLoopSetLastRunGui(message));
+                RxBus.INSTANCE.send(new EventLoopSetLastRunGui(message));
                 return;
             }
             final PumpInterface pump = ConfigBuilderPlugin.getPlugin().getActivePump();
@@ -293,7 +294,7 @@ public class LoopPlugin extends PluginBase {
             if (!ProfileFunctions.getInstance().isProfileValid("Loop")) {
                 if (L.isEnabled(L.APS))
                     log.debug(MainApp.gs(R.string.noprofileselected));
-                MainApp.bus().post(new EventLoopSetLastRunGui(MainApp.gs(R.string.noprofileselected)));
+                RxBus.INSTANCE.send(new EventLoopSetLastRunGui(MainApp.gs(R.string.noprofileselected)));
                 return;
             }
 
@@ -308,7 +309,7 @@ public class LoopPlugin extends PluginBase {
 
             // Check if we have any result
             if (result == null) {
-                MainApp.bus().post(new EventLoopSetLastRunGui(MainApp.gs(R.string.noapsselected)));
+                RxBus.INSTANCE.send(new EventLoopSetLastRunGui(MainApp.gs(R.string.noapsselected)));
                 return;
             }
 
@@ -350,14 +351,14 @@ public class LoopPlugin extends PluginBase {
             if (isSuspended()) {
                 if (L.isEnabled(L.APS))
                     log.debug(MainApp.gs(R.string.loopsuspended));
-                MainApp.bus().post(new EventLoopSetLastRunGui(MainApp.gs(R.string.loopsuspended)));
+                RxBus.INSTANCE.send(new EventLoopSetLastRunGui(MainApp.gs(R.string.loopsuspended)));
                 return;
             }
 
             if (pump.isSuspended()) {
                 if (L.isEnabled(L.APS))
                     log.debug(MainApp.gs(R.string.pumpsuspended));
-                MainApp.bus().post(new EventLoopSetLastRunGui(MainApp.gs(R.string.pumpsuspended)));
+                RxBus.INSTANCE.send(new EventLoopSetLastRunGui(MainApp.gs(R.string.pumpsuspended)));
                 return;
             }
 
@@ -373,7 +374,7 @@ public class LoopPlugin extends PluginBase {
                         lastRun.tbrSetByPump = waiting;
                     if (resultAfterConstraints.bolusRequested)
                         lastRun.smbSetByPump = waiting;
-                    MainApp.bus().post(new EventLoopUpdateGui());
+                    RxBus.INSTANCE.send(new EventLoopUpdateGui());
                     FabricPrivacy.getInstance().logCustom("APSRequest");
                     applyTBRRequest(resultAfterConstraints, profile, new Callback() {
                         @Override
@@ -394,11 +395,11 @@ public class LoopPlugin extends PluginBase {
                                                 LoopPlugin.getPlugin().invoke("tempBasalFallback", allowNotification, true);
                                             }).start();
                                         }
-                                        MainApp.bus().post(new EventLoopUpdateGui());
+                                        RxBus.INSTANCE.send(new EventLoopUpdateGui());
                                     }
                                 });
                             }
-                            MainApp.bus().post(new EventLoopUpdateGui());
+                            RxBus.INSTANCE.send(new EventLoopUpdateGui());
                         }
                     });
                 } else {
@@ -452,7 +453,7 @@ public class LoopPlugin extends PluginBase {
                 }
             }
 
-            MainApp.bus().post(new EventLoopUpdateGui());
+            RxBus.INSTANCE.send(new EventLoopUpdateGui());
         } finally {
             if (L.isEnabled(L.APS))
                 log.debug("invoke end");

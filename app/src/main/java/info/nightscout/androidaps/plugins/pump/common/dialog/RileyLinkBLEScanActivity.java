@@ -11,7 +11,6 @@ import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.ParcelUuid;
@@ -43,6 +42,8 @@ import java.util.Map;
 
 import info.nightscout.androidaps.MainApp;
 import info.nightscout.androidaps.R;
+import info.nightscout.androidaps.activities.NoSplashAppCompatActivity;
+import info.nightscout.androidaps.plugins.bus.RxBus;
 import info.nightscout.androidaps.plugins.pump.common.hw.rileylink.RileyLinkConst;
 import info.nightscout.androidaps.plugins.pump.common.hw.rileylink.RileyLinkUtil;
 import info.nightscout.androidaps.plugins.pump.common.hw.rileylink.ble.data.GattAttributes;
@@ -53,7 +54,7 @@ import info.nightscout.androidaps.plugins.pump.medtronic.util.MedtronicUtil;
 import info.nightscout.androidaps.utils.SP;
 
 // IMPORTANT: This activity needs to be called from RileyLinkSelectPreference (see pref_medtronic.xml as example)
-public class RileyLinkBLEScanActivity extends AppCompatActivity {
+public class RileyLinkBLEScanActivity extends NoSplashAppCompatActivity {
 
     private static final Logger LOG = LoggerFactory.getLogger(RileyLinkBLEScanActivity.class);
 
@@ -80,7 +81,7 @@ public class RileyLinkBLEScanActivity extends AppCompatActivity {
 
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.rileylink_scan_activity);
 
@@ -89,7 +90,7 @@ public class RileyLinkBLEScanActivity extends AppCompatActivity {
         mHandler = new Handler();
 
         mLeDeviceListAdapter = new LeDeviceListAdapter();
-        listBTScan = (ListView)findViewById(R.id.rileylink_listBTScan);
+        listBTScan = (ListView) findViewById(R.id.rileylink_listBTScan);
         listBTScan.setAdapter(mLeDeviceListAdapter);
         listBTScan.setOnItemClickListener((parent, view, position, id) -> {
 
@@ -99,7 +100,7 @@ public class RileyLinkBLEScanActivity extends AppCompatActivity {
                 mLEScanner.stopScan(mScanCallback2);
             }
 
-            TextView textview = (TextView)view.findViewById(R.id.rileylink_device_address);
+            TextView textview = (TextView) view.findViewById(R.id.rileylink_device_address);
             String bleAddress = textview.getText().toString();
 
             SP.putString(RileyLinkConst.Prefs.RileyLinkAddress, bleAddress);
@@ -109,12 +110,12 @@ public class RileyLinkBLEScanActivity extends AppCompatActivity {
             MedtronicPumpStatus pumpStatus = MedtronicUtil.getPumpStatus();
             pumpStatus.verifyConfiguration(); // force reloading of address
 
-            MainApp.bus().post(new EventMedtronicPumpConfigurationChanged());
+            RxBus.INSTANCE.send(new EventMedtronicPumpConfigurationChanged());
 
             finish();
         });
 
-        toolbarBTScan = (Toolbar)findViewById(R.id.rileylink_toolbarBTScan);
+        toolbarBTScan = (Toolbar) findViewById(R.id.rileylink_toolbarBTScan);
         toolbarBTScan.setTitle(R.string.rileylink_scanner_title);
         setSupportActionBar(toolbarBTScan);
 
@@ -161,8 +162,8 @@ public class RileyLinkBLEScanActivity extends AppCompatActivity {
             // you can selectively disable BLE-related features.
             if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 // your code that requires permission
-                ActivityCompat.requestPermissions(this, new String[] { Manifest.permission.ACCESS_COARSE_LOCATION },
-                    PERMISSION_REQUEST_COARSE_LOCATION);
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
+                        PERMISSION_REQUEST_COARSE_LOCATION);
             }
 
             // Ensures Bluetooth is available on the device and it is enabled. If not,
@@ -171,20 +172,15 @@ public class RileyLinkBLEScanActivity extends AppCompatActivity {
                 Toast.makeText(this, R.string.rileylink_scanner_ble_not_enabled, Toast.LENGTH_SHORT).show();
             } else {
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    // Will request that GPS be enabled for devices running Marshmallow or newer.
-                    if (!LocationHelper.isLocationEnabled(this)) {
-                        LocationHelper.requestLocationForBluetooth(this);
-                    }
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-                    startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+                // Will request that GPS be enabled for devices running Marshmallow or newer.
+                if (!LocationHelper.isLocationEnabled(this)) {
+                    LocationHelper.requestLocationForBluetooth(this);
                 }
 
                 mLEScanner = mBluetoothAdapter.getBluetoothLeScanner();
                 settings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build();
                 filters = Arrays.asList(new ScanFilter.Builder().setServiceUuid(
-                    ParcelUuid.fromString(GattAttributes.SERVICE_RADIO)).build());
+                        ParcelUuid.fromString(GattAttributes.SERVICE_RADIO)).build());
 
             }
         }
@@ -268,7 +264,7 @@ public class RileyLinkBLEScanActivity extends AppCompatActivity {
 
         private String getDeviceDebug(BluetoothDevice device) {
             return "BluetoothDevice [name=" + device.getName() + ", address=" + device.getAddress() + //
-                ", type=" + device.getType(); // + ", alias=" + device.getAlias();
+                    ", type=" + device.getType(); // + ", alias=" + device.getAlias();
         }
 
 
@@ -276,7 +272,7 @@ public class RileyLinkBLEScanActivity extends AppCompatActivity {
         public void onScanFailed(int errorCode) {
             Log.e("Scan Failed", "Error Code: " + errorCode);
             Toast.makeText(mContext, MainApp.gs(R.string.rileylink_scanner_scanning_error, errorCode),
-                Toast.LENGTH_LONG).show();
+                    Toast.LENGTH_LONG).show();
         }
 
     };
@@ -384,11 +380,11 @@ public class RileyLinkBLEScanActivity extends AppCompatActivity {
             if (view == null) {
                 view = mInflator.inflate(R.layout.rileylink_scan_item, null);
                 viewHolder = new ViewHolder();
-                viewHolder.deviceAddress = (TextView)view.findViewById(R.id.rileylink_device_address);
-                viewHolder.deviceName = (TextView)view.findViewById(R.id.rileylink_device_name);
+                viewHolder.deviceAddress = (TextView) view.findViewById(R.id.rileylink_device_address);
+                viewHolder.deviceName = (TextView) view.findViewById(R.id.rileylink_device_name);
                 view.setTag(viewHolder);
             } else {
-                viewHolder = (ViewHolder)view.getTag();
+                viewHolder = (ViewHolder) view.getTag();
             }
 
             BluetoothDevice device = mLeDevices.get(i);

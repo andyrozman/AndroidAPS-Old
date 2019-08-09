@@ -16,6 +16,9 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.PopupMenu;
 import androidx.core.content.res.ResourcesCompat;
 
+import androidx.appcompat.widget.PopupMenu;
+import androidx.core.content.res.ResourcesCompat;
+
 import com.jjoe64.graphview.GraphView;
 import com.squareup.otto.Subscribe;
 import com.wdullaer.materialdatetimepicker.date.DatePickerDialog;
@@ -26,10 +29,6 @@ import org.slf4j.LoggerFactory;
 import java.util.Calendar;
 import java.util.Date;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
-import butterknife.OnClick;
-import butterknife.OnLongClick;
 import info.nightscout.androidaps.MainApp;
 import info.nightscout.androidaps.R;
 import info.nightscout.androidaps.data.Profile;
@@ -46,7 +45,7 @@ import info.nightscout.androidaps.plugins.iob.iobCobCalculator.events.EventIobCa
 import info.nightscout.androidaps.utils.DateUtil;
 import info.nightscout.androidaps.utils.T;
 
-public class HistoryBrowseActivity extends AppCompatActivity {
+public class HistoryBrowseActivity extends NoSplashActivity {
     private static Logger log = LoggerFactory.getLogger(HistoryBrowseActivity.class);
 
 
@@ -56,19 +55,12 @@ public class HistoryBrowseActivity extends AppCompatActivity {
     boolean showIob, showCob, showDev, showRat, showActPrim, showActSec, showDevslope;
 
 
-    @BindView(R.id.historybrowse_date)
     Button buttonDate;
-    @BindView(R.id.historybrowse_zoom)
     Button buttonZoom;
-    @BindView(R.id.historyybrowse_bggraph)
     GraphView bgGraph;
-    @BindView(R.id.historybrowse_iobgraph)
     GraphView iobGraph;
-    @BindView(R.id.historybrowse_seekBar)
     SeekBar seekBar;
-    @BindView(R.id.historybrowse_noprofile)
     TextView noProfile;
-    @BindView(R.id.overview_iobcalculationprogess)
     TextView iobCalculationProgressView;
 
     private int rangeToDisplay = 24; // for graph
@@ -83,11 +75,83 @@ public class HistoryBrowseActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_historybrowse);
 
-        ButterKnife.bind(this);
+        buttonDate = findViewById(R.id.historybrowse_date);
+        buttonZoom = findViewById(R.id.historybrowse_zoom);
+        bgGraph = findViewById(R.id.historyybrowse_bggraph);
+        iobGraph = findViewById(R.id.historybrowse_iobgraph);
+        seekBar = findViewById(R.id.historybrowse_seekBar);
+        noProfile = findViewById(R.id.historybrowse_noprofile);
+        iobCalculationProgressView = findViewById(R.id.overview_iobcalculationprogess);
+
+        findViewById(R.id.historybrowse_left).setOnClickListener(v -> {
+            start -= T.hours(rangeToDisplay).msecs();
+            updateGUI("onClickLeft");
+            runCalculation("onClickLeft");
+        });
+
+        findViewById(R.id.historybrowse_right).setOnClickListener(v -> {
+            start += T.hours(rangeToDisplay).msecs();
+            updateGUI("onClickRight");
+            runCalculation("onClickRight");
+        });
+
+        findViewById(R.id.historybrowse_end).setOnClickListener(v -> {
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTimeInMillis(System.currentTimeMillis());
+            calendar.set(Calendar.MILLISECOND, 0);
+            calendar.set(Calendar.SECOND, 0);
+            calendar.set(Calendar.MINUTE, 0);
+            calendar.set(Calendar.HOUR_OF_DAY, 0);
+            start = calendar.getTimeInMillis();
+            updateGUI("onClickEnd");
+            runCalculation("onClickEnd");
+        });
+
+        findViewById(R.id.historybrowse_zoom).setOnClickListener(v -> {
+            rangeToDisplay += 6;
+            rangeToDisplay = rangeToDisplay > 24 ? 6 : rangeToDisplay;
+            updateGUI("rangeChange");
+        });
+
+        findViewById(R.id.historybrowse_zoom).setOnLongClickListener(v -> {
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTimeInMillis(start);
+            calendar.set(Calendar.MILLISECOND, 0);
+            calendar.set(Calendar.SECOND, 0);
+            calendar.set(Calendar.MINUTE, 0);
+            calendar.set(Calendar.HOUR_OF_DAY, 0);
+            start = calendar.getTimeInMillis();
+            updateGUI("resetToMidnight");
+            runCalculation("onLongClickZoom");
+            return true;
+        });
+
+        findViewById(R.id.historybrowse_date).setOnClickListener(v -> {
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(new Date(start));
+            DatePickerDialog dpd = DatePickerDialog.newInstance(
+                    (view, year, monthOfYear, dayOfMonth) -> {
+                        Date date = new Date(0);
+                        date.setYear(year - 1900);
+                        date.setMonth(monthOfYear);
+                        date.setDate(dayOfMonth);
+                        date.setHours(0);
+                        start = date.getTime();
+                        updateGUI("onClickDate");
+                        runCalculation("onClickDate");
+                    },
+                    calendar.get(Calendar.YEAR),
+                    calendar.get(Calendar.MONTH),
+                    calendar.get(Calendar.DAY_OF_MONTH)
+            );
+            dpd.setThemeDark(true);
+            dpd.dismissOnPause(true);
+            dpd.show(getFragmentManager(), "Datepickerdialog");
+        });
 
         bgGraph.getGridLabelRenderer().setGridColor(MainApp.gc(R.color.graphgrid));
         bgGraph.getGridLabelRenderer().reloadStyles();
@@ -123,78 +187,6 @@ public class HistoryBrowseActivity extends AppCompatActivity {
         runCalculation("onResume");
         SystemClock.sleep(1000);
         updateGUI("onResume");
-    }
-
-    @OnClick(R.id.historybrowse_left)
-    void onClickLeft() {
-        start -= T.hours(rangeToDisplay).msecs();
-        updateGUI("onClickLeft");
-        runCalculation("onClickLeft");
-    }
-
-    @OnClick(R.id.historybrowse_right)
-    void onClickRight() {
-        start += T.hours(rangeToDisplay).msecs();
-        updateGUI("onClickRight");
-        runCalculation("onClickRight");
-    }
-
-    @OnClick(R.id.historybrowse_end)
-    void onClickEnd() {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTimeInMillis(System.currentTimeMillis());
-        calendar.set(Calendar.MILLISECOND, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-        start = calendar.getTimeInMillis();
-        updateGUI("onClickEnd");
-        runCalculation("onClickEnd");
-    }
-
-    @OnClick(R.id.historybrowse_zoom)
-    void onClickZoom() {
-        rangeToDisplay += 6;
-        rangeToDisplay = rangeToDisplay > 24 ? 6 : rangeToDisplay;
-        updateGUI("rangeChange");
-    }
-
-    @OnLongClick(R.id.historybrowse_zoom)
-    boolean onLongClickZoom() {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTimeInMillis(start);
-        calendar.set(Calendar.MILLISECOND, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-        start = calendar.getTimeInMillis();
-        updateGUI("resetToMidnight");
-        runCalculation("onLongClickZoom");
-        return true;
-    }
-
-    @OnClick(R.id.historybrowse_date)
-    void onClickDate() {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(new Date(start));
-        DatePickerDialog dpd = DatePickerDialog.newInstance(
-                (view, year, monthOfYear, dayOfMonth) -> {
-                    Date date = new Date(0);
-                    date.setYear(year - 1900);
-                    date.setMonth(monthOfYear);
-                    date.setDate(dayOfMonth);
-                    date.setHours(0);
-                    start = date.getTime();
-                    updateGUI("onClickDate");
-                    runCalculation("onClickDate");
-                },
-                calendar.get(Calendar.YEAR),
-                calendar.get(Calendar.MONTH),
-                calendar.get(Calendar.DAY_OF_MONTH)
-        );
-        dpd.setThemeDark(true);
-        dpd.dismissOnPause(true);
-        dpd.show(getFragmentManager(), "Datepickerdialog");
     }
 
     private void runCalculation(String from) {
@@ -286,8 +278,8 @@ public class HistoryBrowseActivity extends AppCompatActivity {
         // set manual x bounds to have nice steps
         graphData.formatAxis(fromTime, toTime);
 
-        if(showActPrim) {
-            graphData.addActivity(fromTime, toTime, false,1d);
+        if (showActPrim) {
+            graphData.addActivity(fromTime, toTime, false, 1d);
         }
 
         // Treatments
@@ -336,7 +328,7 @@ public class HistoryBrowseActivity extends AppCompatActivity {
             if (showRat)
                 secondGraphData.addRatio(fromTime, toTime, useRatioForScale, 1d);
             if (showActSec)
-                secondGraphData.addActivity(fromTime, toTime, useIAForScale, useIAForScale? 2d: 1d);
+                secondGraphData.addActivity(fromTime, toTime, useIAForScale, useIAForScale ? 2d : 1d);
             if (showDevslope)
                 secondGraphData.addDeviationSlope(fromTime, toTime, useDSForScale, 1d);
 
@@ -363,7 +355,7 @@ public class HistoryBrowseActivity extends AppCompatActivity {
     private void setupChartMenu() {
         chartButton = (ImageButton) findViewById(R.id.overview_chartMenuButton);
         chartButton.setOnClickListener(v -> {
-            MenuItem item,dividerItem;
+            MenuItem item, dividerItem;
             CharSequence title;
             int titleMaxChars = 0;
             SpannableString s;
@@ -372,7 +364,7 @@ public class HistoryBrowseActivity extends AppCompatActivity {
 
             item = popup.getMenu().add(Menu.NONE, OverviewFragment.CHARTTYPE.BAS.ordinal(), Menu.NONE, MainApp.gs(R.string.overview_show_basals));
             title = item.getTitle();
-            if (titleMaxChars < title.length()) titleMaxChars =  title.length();
+            if (titleMaxChars < title.length()) titleMaxChars = title.length();
             s = new SpannableString(title);
             s.setSpan(new ForegroundColorSpan(ResourcesCompat.getColor(getResources(), R.color.basal, null)), 0, s.length(), 0);
             item.setTitle(s);
@@ -381,7 +373,7 @@ public class HistoryBrowseActivity extends AppCompatActivity {
 
             item = popup.getMenu().add(Menu.NONE, OverviewFragment.CHARTTYPE.ACTPRIM.ordinal(), Menu.NONE, MainApp.gs(R.string.overview_show_activity));
             title = item.getTitle();
-            if (titleMaxChars < title.length()) titleMaxChars =  title.length();
+            if (titleMaxChars < title.length()) titleMaxChars = title.length();
             s = new SpannableString(title);
             s.setSpan(new ForegroundColorSpan(ResourcesCompat.getColor(getResources(), R.color.activity, null)), 0, s.length(), 0);
             item.setTitle(s);
@@ -393,7 +385,7 @@ public class HistoryBrowseActivity extends AppCompatActivity {
 
             item = popup.getMenu().add(Menu.NONE, OverviewFragment.CHARTTYPE.IOB.ordinal(), Menu.NONE, MainApp.gs(R.string.overview_show_iob));
             title = item.getTitle();
-            if (titleMaxChars < title.length()) titleMaxChars =  title.length();
+            if (titleMaxChars < title.length()) titleMaxChars = title.length();
             s = new SpannableString(title);
             s.setSpan(new ForegroundColorSpan(ResourcesCompat.getColor(getResources(), R.color.iob, null)), 0, s.length(), 0);
             item.setTitle(s);
@@ -402,7 +394,7 @@ public class HistoryBrowseActivity extends AppCompatActivity {
 
             item = popup.getMenu().add(Menu.NONE, OverviewFragment.CHARTTYPE.COB.ordinal(), Menu.NONE, MainApp.gs(R.string.overview_show_cob));
             title = item.getTitle();
-            if (titleMaxChars < title.length()) titleMaxChars =  title.length();
+            if (titleMaxChars < title.length()) titleMaxChars = title.length();
             s = new SpannableString(title);
             s.setSpan(new ForegroundColorSpan(ResourcesCompat.getColor(getResources(), R.color.cob, null)), 0, s.length(), 0);
             item.setTitle(s);
@@ -411,7 +403,7 @@ public class HistoryBrowseActivity extends AppCompatActivity {
 
             item = popup.getMenu().add(Menu.NONE, OverviewFragment.CHARTTYPE.DEV.ordinal(), Menu.NONE, MainApp.gs(R.string.overview_show_deviations));
             title = item.getTitle();
-            if (titleMaxChars < title.length()) titleMaxChars =  title.length();
+            if (titleMaxChars < title.length()) titleMaxChars = title.length();
             s = new SpannableString(title);
             s.setSpan(new ForegroundColorSpan(ResourcesCompat.getColor(getResources(), R.color.deviations, null)), 0, s.length(), 0);
             item.setTitle(s);
@@ -420,7 +412,7 @@ public class HistoryBrowseActivity extends AppCompatActivity {
 
             item = popup.getMenu().add(Menu.NONE, OverviewFragment.CHARTTYPE.SEN.ordinal(), Menu.NONE, MainApp.gs(R.string.overview_show_sensitivity));
             title = item.getTitle();
-            if (titleMaxChars < title.length()) titleMaxChars =  title.length();
+            if (titleMaxChars < title.length()) titleMaxChars = title.length();
             s = new SpannableString(title);
             s.setSpan(new ForegroundColorSpan(ResourcesCompat.getColor(getResources(), R.color.ratio, null)), 0, s.length(), 0);
             item.setTitle(s);
@@ -429,7 +421,7 @@ public class HistoryBrowseActivity extends AppCompatActivity {
 
             item = popup.getMenu().add(Menu.NONE, OverviewFragment.CHARTTYPE.ACTSEC.ordinal(), Menu.NONE, MainApp.gs(R.string.overview_show_activity));
             title = item.getTitle();
-            if (titleMaxChars < title.length()) titleMaxChars =  title.length();
+            if (titleMaxChars < title.length()) titleMaxChars = title.length();
             s = new SpannableString(title);
             s.setSpan(new ForegroundColorSpan(ResourcesCompat.getColor(getResources(), R.color.activity, null)), 0, s.length(), 0);
             item.setTitle(s);
@@ -440,7 +432,7 @@ public class HistoryBrowseActivity extends AppCompatActivity {
             if (MainApp.devBranch) {
                 item = popup.getMenu().add(Menu.NONE, OverviewFragment.CHARTTYPE.DEVSLOPE.ordinal(), Menu.NONE, "Deviation slope");
                 title = item.getTitle();
-                if (titleMaxChars < title.length()) titleMaxChars =  title.length();
+                if (titleMaxChars < title.length()) titleMaxChars = title.length();
                 s = new SpannableString(title);
                 s.setSpan(new ForegroundColorSpan(ResourcesCompat.getColor(getResources(), R.color.devslopepos, null)), 0, s.length(), 0);
                 item.setTitle(s);
@@ -449,7 +441,7 @@ public class HistoryBrowseActivity extends AppCompatActivity {
             }
 
             // Fairly good guestimate for required divider text size...
-            title = new String(new char[titleMaxChars+10]).replace("\0", "_");
+            title = new String(new char[titleMaxChars + 10]).replace("\0", "_");
             dividerItem.setTitle(title);
 
             popup.setOnMenuItemClickListener(item1 -> {

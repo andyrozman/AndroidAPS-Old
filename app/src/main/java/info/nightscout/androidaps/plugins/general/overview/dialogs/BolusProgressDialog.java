@@ -4,13 +4,15 @@ package info.nightscout.androidaps.plugins.general.overview.dialogs;
 import android.app.Activity;
 import android.os.Bundle;
 import android.os.SystemClock;
-import androidx.fragment.app.DialogFragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.fragment.app.DialogFragment;
 
 import com.squareup.otto.Subscribe;
 
@@ -38,6 +40,9 @@ public class BolusProgressDialog extends DialogFragment implements View.OnClickL
     public static boolean running = true;
     public static boolean stopPressed = false;
 
+    private String state;
+    private final static String DEFAULT_STATE = MainApp.gs(R.string.waitingforpump);
+
     public BolusProgressDialog() {
         super();
     }
@@ -62,7 +67,8 @@ public class BolusProgressDialog extends DialogFragment implements View.OnClickL
         progressBar = view.findViewById(R.id.overview_bolusprogress_progressbar);
         stopButton.setOnClickListener(this);
         progressBar.setMax(100);
-        statusView.setText(MainApp.gs(R.string.waitingforpump));
+        state = savedInstanceState != null ? savedInstanceState.getString("state", DEFAULT_STATE) : DEFAULT_STATE;
+        statusView.setText(state);
         setCancelable(false);
         stopPressed = false;
         return view;
@@ -81,10 +87,14 @@ public class BolusProgressDialog extends DialogFragment implements View.OnClickL
         } else {
             if (getDialog() != null)
                 getDialog().getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            MainApp.subscribe(this);
             running = true;
             if (L.isEnabled(L.UI))
                 log.debug("onResume running");
+        }
+        try {
+            MainApp.bus().register(this);
+        } catch (IllegalArgumentException e) {
+            log.error("Already registered");
         }
     }
 
@@ -107,11 +117,22 @@ public class BolusProgressDialog extends DialogFragment implements View.OnClickL
 
     @Override
     public void onPause() {
-        running = false;
-        super.onPause();
-        MainApp.unsubscribe(this);
         if (L.isEnabled(L.UI))
             log.debug("onPause");
+        running = false;
+        super.onPause();
+        try {
+            MainApp.bus().unregister(this);
+        } catch (IllegalArgumentException e) {
+            log.error("Already unregistered");
+        }
+    }
+
+    @Override
+    public void onSaveInstanceState(@NonNull Bundle outState) {
+        outState.putString("state", state);
+        log.debug("storing state: " + state);
+        super.onSaveInstanceState(outState);
     }
 
     @Override
@@ -143,6 +164,7 @@ public class BolusProgressDialog extends DialogFragment implements View.OnClickL
                 }
             });
         }
+        state = ev.status;
     }
 
     @Subscribe
@@ -183,9 +205,6 @@ public class BolusProgressDialog extends DialogFragment implements View.OnClickL
                         log.error("Unhandled exception", e);
                     }
                 });
-            } else {
-                if (L.isEnabled(L.UI))
-                    log.debug("activity == null");
             }
         });
         t.start();

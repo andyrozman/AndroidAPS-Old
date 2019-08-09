@@ -44,6 +44,7 @@ import info.nightscout.androidaps.interfaces.PluginDescription;
 import info.nightscout.androidaps.interfaces.PluginType;
 import info.nightscout.androidaps.interfaces.PumpInterface;
 import info.nightscout.androidaps.logging.L;
+import info.nightscout.androidaps.plugins.bus.RxBus;
 import info.nightscout.androidaps.plugins.common.ManufacturerType;
 import info.nightscout.androidaps.plugins.configBuilder.ConfigBuilderPlugin;
 import info.nightscout.androidaps.plugins.general.actions.defs.CustomAction;
@@ -78,6 +79,7 @@ import info.nightscout.androidaps.plugins.pump.medtronic.defs.MedtronicStatusRef
 import info.nightscout.androidaps.plugins.pump.medtronic.defs.MedtronicUIResponseType;
 import info.nightscout.androidaps.plugins.pump.medtronic.driver.MedtronicPumpStatus;
 import info.nightscout.androidaps.plugins.pump.medtronic.events.EventMedtronicPumpValuesChanged;
+import info.nightscout.androidaps.plugins.pump.medtronic.events.EventRefreshButtonState;
 import info.nightscout.androidaps.plugins.pump.medtronic.service.RileyLinkMedtronicService;
 import info.nightscout.androidaps.plugins.pump.medtronic.util.MedtronicConst;
 import info.nightscout.androidaps.plugins.pump.medtronic.util.MedtronicUtil;
@@ -375,7 +377,7 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
             refreshAnyStatusThatNeedsToBeRefreshed();
         }
 
-        MainApp.bus().post(new EventMedtronicPumpValuesChanged());
+       RxBus.INSTANCE.send(new EventMedtronicPumpValuesChanged());
     }
 
 
@@ -499,7 +501,7 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
 
 
     private void setRefreshButtonEnabled(boolean enabled) {
-        MedtronicFragment.refreshButtonEnabled(enabled);
+        RxBus.INSTANCE.send(new EventRefreshButtonState(enabled));
     }
 
 
@@ -715,7 +717,7 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
 
 
     protected void triggerUIChange() {
-        MainApp.bus().post(new EventMedtronicPumpValuesChanged());
+        RxBus.INSTANCE.send(new EventMedtronicPumpValuesChanged());
     }
 
     private BolusDeliveryType bolusDeliveryType = BolusDeliveryType.Idle;
@@ -746,6 +748,15 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
         medtronicUIComm.executeCommand(MedtronicCommandType.GetRealTimeClock);
 
         ClockDTO clock = MedtronicUtil.getPumpTime();
+
+        if (clock==null) { // retry
+            medtronicUIComm.executeCommand(MedtronicCommandType.GetRealTimeClock);
+
+            clock = MedtronicUtil.getPumpTime();
+        }
+
+        if (clock==null)
+            return;
 
         int timeDiff = Math.abs(clock.timeDifference);
 
@@ -1584,6 +1595,7 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
                     ServiceTaskExecutor.startTask(new WakeAndTuneTask());
                 } else {
                     Intent i = new Intent(MainApp.instance(), ErrorHelperActivity.class);
+                    i.putExtra("soundid", R.raw.boluserror);
                     i.putExtra("status", MainApp.gs(R.string.medtronic_error_operation_not_possible_no_configuration));
                     i.putExtra("title", MainApp.gs(R.string.combo_warning));
                     i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);

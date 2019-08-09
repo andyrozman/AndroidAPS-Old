@@ -22,9 +22,7 @@ import info.nightscout.androidaps.plugins.general.tidepool.events.EventTidepoolU
 import info.nightscout.androidaps.plugins.general.tidepool.utils.RateLimit
 import info.nightscout.androidaps.receivers.ChargingStateReceiver
 import info.nightscout.androidaps.receivers.NetworkChangeReceiver
-import info.nightscout.androidaps.utils.SP
-import info.nightscout.androidaps.utils.T
-import info.nightscout.androidaps.utils.ToastUtils
+import info.nightscout.androidaps.utils.*
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.disposables.Disposable
 import io.reactivex.schedulers.Schedulers
@@ -44,8 +42,7 @@ object TidepoolPlugin : PluginBase(PluginDescription()
     private var disposable: CompositeDisposable = CompositeDisposable()
 
     private val listLog = ArrayList<EventTidepoolStatus>()
-    @Suppress("DEPRECATION") // API level 24 to replace call
-    var textLog: Spanned = Html.fromHtml("")
+    var textLog: Spanned = HtmlHelper.fromHtml("")
 
     operator fun CompositeDisposable.plusAssign(disposable: Disposable) {
         add(disposable)
@@ -57,7 +54,7 @@ object TidepoolPlugin : PluginBase(PluginDescription()
                 .toObservable(EventTidepoolDoUpload::class.java)
                 .observeOn(Schedulers.io())
                 .subscribe({ doUpload() }, {
-                    log.error(it.message)
+                    FabricPrivacy.logException(it)
                 })
         disposable += RxBus
                 .toObservable(EventTidepoolResetData::class.java)
@@ -71,12 +68,14 @@ object TidepoolPlugin : PluginBase(PluginDescription()
                         TidepoolUploader.doLogin()
                     }
                 }, {
-                    log.error(it.message)
+                    FabricPrivacy.logException(it)
                 })
         disposable += RxBus
                 .toObservable(EventTidepoolStatus::class.java)
                 .observeOn(Schedulers.io())
-                .subscribe({ event -> addToLog(event) }, {})
+                .subscribe({ event -> addToLog(event) }, {
+                    FabricPrivacy.logException(it)
+                })
         disposable += AppRepository.changeObservable
                 .observeOn(Schedulers.io())
                 .subscribe { list ->
@@ -100,13 +99,13 @@ object TidepoolPlugin : PluginBase(PluginDescription()
                     )
                         TidepoolUploader.resetInstance()
                 }, {
-                    log.error(it.message)
+                    FabricPrivacy.logException(it)
                 })
         disposable += RxBus
                 .toObservable(EventNetworkChange::class.java)
                 .observeOn(Schedulers.io())
                 .subscribe({}, {
-                    log.error(it.message)
+                    FabricPrivacy.logException(it)
                 }) // TODO start upload on wifi connect
 
     }
@@ -117,12 +116,14 @@ object TidepoolPlugin : PluginBase(PluginDescription()
     }
 
     private fun doUpload() =
-        when (TidepoolUploader.connectionStatus) {
-            TidepoolUploader.ConnectionStatus.FAILED -> {}
-            TidepoolUploader.ConnectionStatus.CONNECTING -> {}
-            TidepoolUploader.ConnectionStatus.DISCONNECTED -> TidepoolUploader.doLogin(true)
-            TidepoolUploader.ConnectionStatus.CONNECTED -> TidepoolUploader.doUpload()
-        }
+            when (TidepoolUploader.connectionStatus) {
+                TidepoolUploader.ConnectionStatus.FAILED -> {
+                }
+                TidepoolUploader.ConnectionStatus.CONNECTING -> {
+                }
+                TidepoolUploader.ConnectionStatus.DISCONNECTED -> TidepoolUploader.doLogin(true)
+                TidepoolUploader.ConnectionStatus.CONNECTED -> TidepoolUploader.doUpload()
+            }
 
     @Synchronized
     private fun addToLog(ev: EventTidepoolStatus) {
@@ -145,8 +146,7 @@ object TidepoolPlugin : PluginBase(PluginDescription()
                     newTextLog.append(log.toPreparedHtml())
                 }
             }
-            @Suppress("DEPRECATION") // API level 24 to replace call
-            textLog = Html.fromHtml(newTextLog.toString())
+            textLog = HtmlHelper.fromHtml(newTextLog.toString())
         } catch (e: OutOfMemoryError) {
             ToastUtils.showToastInUiThread(MainApp.instance().applicationContext, "Out of memory!\nStop using this phone !!!", R.raw.error)
         }

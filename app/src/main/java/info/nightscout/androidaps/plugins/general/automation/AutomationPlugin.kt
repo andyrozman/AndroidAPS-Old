@@ -1,6 +1,7 @@
 package info.nightscout.androidaps.plugins.general.automation
 
 import android.content.Intent
+import android.os.Build
 import android.os.Handler
 import info.nightscout.androidaps.MainApp
 import info.nightscout.androidaps.R
@@ -21,6 +22,7 @@ import info.nightscout.androidaps.plugins.iob.iobCobCalculator.events.EventAutos
 import info.nightscout.androidaps.queue.Callback
 import info.nightscout.androidaps.services.LocationService
 import info.nightscout.androidaps.utils.DateUtil
+import info.nightscout.androidaps.utils.FabricPrivacy
 import info.nightscout.androidaps.utils.SP
 import info.nightscout.androidaps.utils.T
 import io.reactivex.disposables.CompositeDisposable
@@ -64,7 +66,10 @@ object AutomationPlugin : PluginBase(PluginDescription()
 
     override fun onStart() {
         val context = MainApp.instance().applicationContext
-        context.startService(Intent(context, LocationService::class.java))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            context.startForegroundService(Intent(context, LocationService::class.java))
+        else
+            context.startService(Intent(context, LocationService::class.java))
 
         super.onStart()
         loadFromSP()
@@ -75,15 +80,21 @@ object AutomationPlugin : PluginBase(PluginDescription()
                 .observeOn(Schedulers.io())
                 .subscribe({ e ->
                     if (e.isChanged(R.string.key_location)) {
-                        val ctx = MainApp.instance().applicationContext
-                        ctx.stopService(Intent(ctx, LocationService::class.java))
-                        ctx.startService(Intent(ctx, LocationService::class.java))
+                        context.stopService(Intent(context, LocationService::class.java))
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                            context.startForegroundService(Intent(context, LocationService::class.java))
+                        else
+                            context.startService(Intent(context, LocationService::class.java))
                     }
-                }, {})
+                }, {
+                    FabricPrivacy.logException(it)
+                })
         disposable += RxBus
                 .toObservable(EventAutomationDataChanged::class.java)
                 .observeOn(Schedulers.io())
-                .subscribe({ storeToSP() }, {})
+                .subscribe({ storeToSP() }, {
+                    FabricPrivacy.logException(it)
+                })
         disposable += RxBus
                 .toObservable(EventLocationChange::class.java)
                 .observeOn(Schedulers.io())
@@ -92,19 +103,27 @@ object AutomationPlugin : PluginBase(PluginDescription()
                         log.debug("Grabbed location: $it.location.latitude $it.location.longitude Provider: $it.location.provider")
                         processActions()
                     }
-                }, {})
+                }, {
+                    FabricPrivacy.logException(it)
+                })
         disposable += RxBus
                 .toObservable(EventChargingState::class.java)
                 .observeOn(Schedulers.io())
-                .subscribe({ processActions() }, {})
+                .subscribe({ processActions() }, {
+                    FabricPrivacy.logException(it)
+                })
         disposable += RxBus
                 .toObservable(EventNetworkChange::class.java)
                 .observeOn(Schedulers.io())
-                .subscribe({ processActions() }, {})
+                .subscribe({ processActions() }, {
+                    FabricPrivacy.logException(it)
+                })
         disposable += RxBus
                 .toObservable(EventAutosensCalculationFinished::class.java)
                 .observeOn(Schedulers.io())
-                .subscribe({ processActions() }, {})
+                .subscribe({ processActions() }, {
+                    FabricPrivacy.logException(it)
+                })
     }
 
     override fun onStop() {
