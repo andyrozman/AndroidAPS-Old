@@ -36,7 +36,6 @@ class PumpInsertTotalDailyDoseTransaction(
             interfaceIDs.pumpType = pumpType
             interfaceIDs.pumpSerial = pumpSerial
             interfaceIDs.pumpId = pumpId
-            changes.add(this)
         })
 
     }

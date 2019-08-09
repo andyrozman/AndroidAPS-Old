@@ -40,6 +40,8 @@ public class BolusDTO extends PumpTimeStampedRecord {
     private PumpBolusType bolusType;
     private Double insulinOnBoard;
 
+    private Double carbs = 0.0d;
+
 
     public BolusDTO() {
         // this.decimalPrecission = 2;

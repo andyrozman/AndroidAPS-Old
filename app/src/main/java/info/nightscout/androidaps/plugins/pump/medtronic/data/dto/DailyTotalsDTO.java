@@ -242,6 +242,19 @@ public class DailyTotalsDTO {
     }
 
 
+    public Double getInsulinTotal() {
+        return insulinTotal;
+    }
+
+    public Double getInsulinBolus() {
+        return insulinBolus;
+    }
+
+    public Double getInsulinBasal() {
+        return insulinBasal;
+    }
+
+
     public void setTDD(TDD tdd) {
         tdd.date = DateTimeUtil.toMillisFromATD(this.entry.atechDateTime);
         tdd.basal = insulinBasal;

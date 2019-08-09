@@ -67,7 +67,6 @@ class PumpInsertMealBolusTransaction(
                     cobUsed = bolusCalculatorResult.cobUsed,
                     cobInsulin = bolusCalculatorResult.cobInsulin
             ).apply {
-                changes.add(this)
             })
         } else {
             null
@@ -80,7 +79,6 @@ class PumpInsertMealBolusTransaction(
                     amount = carbs,
                     duration = 0
             ).apply {
-                changes.add(this)
             })
         } else {
             null
@@ -91,7 +89,6 @@ class PumpInsertMealBolusTransaction(
                     carbsId = carbsDBId,
                     bolusCalcResultId = bolusCalculatorResultDBId
             ).apply {
-                changes.add(this)
             })
         }
     }

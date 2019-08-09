@@ -126,4 +126,10 @@ public enum PumpBolusType // implements CodeEnumWithTranslation
     public String getName() {
         return this.name();
     }
+
+    public static boolean isNormalBolus(PumpBolusType bolusType) {
+        return bolusType==Normal || bolusType==Audio;
+    }
+
+
 }

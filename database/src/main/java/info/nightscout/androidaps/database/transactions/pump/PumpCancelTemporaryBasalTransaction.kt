@@ -16,6 +16,5 @@ class PumpCancelTemporaryBasalTransaction(
                 ?: throw IllegalStateException("There is currently no TemporaryBasal active.")
         currentlyActive.duration = timestamp - currentlyActive.timestamp
         database.temporaryBasalDao.updateExistingEntry(currentlyActive)
-        changes.add(currentlyActive)
     }
 }

@@ -26,7 +26,6 @@ import info.nightscout.androidaps.database.entities.Bolus;
 import info.nightscout.androidaps.database.interfaces.DBEntry;
 import info.nightscout.androidaps.database.interfaces.DBEntryWithTime;
 import info.nightscout.androidaps.database.transactions.medtronic.MedtronicHistoryProcessTransaction;
-import info.nightscout.androidaps.database.transactions.medtronic.entry.MDTPumpHistoryEntry;
 import info.nightscout.androidaps.database.transactions.pump.PumpExtendedBolusTransaction;
 import info.nightscout.androidaps.database.transactions.pump.PumpInsertMealBolusTransaction;
 import info.nightscout.androidaps.database.transactions.pump.PumpInsertUpdateBolusTransaction;
@@ -40,6 +39,7 @@ import info.nightscout.androidaps.logging.L;
 import info.nightscout.androidaps.plugins.configBuilder.DetailedBolusInfoStorage;
 import info.nightscout.androidaps.plugins.pump.common.utils.DateTimeUtil;
 import info.nightscout.androidaps.plugins.pump.common.utils.StringUtil;
+import info.nightscout.androidaps.plugins.pump.insight.descriptors.BolusType;
 import info.nightscout.androidaps.plugins.pump.medtronic.comm.history.pump.MedtronicPumpHistoryDecoder;
 import info.nightscout.androidaps.plugins.pump.medtronic.comm.history.pump.PumpHistoryEntry;
 import info.nightscout.androidaps.plugins.pump.medtronic.comm.history.pump.PumpHistoryEntryType;
@@ -51,6 +51,7 @@ import info.nightscout.androidaps.plugins.pump.medtronic.data.dto.ClockDTO;
 import info.nightscout.androidaps.plugins.pump.medtronic.data.dto.DailyTotalsDTO;
 import info.nightscout.androidaps.plugins.pump.medtronic.data.dto.TempBasalPair;
 import info.nightscout.androidaps.plugins.pump.medtronic.data.dto.TempBasalProcessDTO;
+import info.nightscout.androidaps.plugins.pump.medtronic.defs.PumpBolusType;
 import info.nightscout.androidaps.plugins.pump.medtronic.driver.MedtronicPumpStatus;
 import info.nightscout.androidaps.plugins.pump.medtronic.util.MedtronicConst;
 import info.nightscout.androidaps.plugins.pump.medtronic.util.MedtronicUtil;
@@ -392,84 +393,7 @@ public class MedtronicHistoryData {
     }
 
 
-    /**
-     * Process History Data: Boluses(Treatments), TDD, TBRs, Suspend-Resume (or other pump stops: battery, prime)
-     */
     public void processNewHistoryData() {
-
-        // TDD
-        List<PumpHistoryEntry> tdds = getFilteredItems(PumpHistoryEntryType.EndResultTotals, getTDDType());
-
-        if (isLogEnabled())
-            LOG.debug("ProcessHistoryData: TDD [count={}, items={}]", tdds.size(), gson.toJson(tdds));
-
-        if (isCollectionNotEmpty(tdds)) {
-            try {
-                processTDDs(tdds);
-            } catch (Exception ex) {
-                LOG.error("ProcessHistoryData: Error processing TDD entries: " + ex.getMessage(), ex);
-                throw ex;
-            }
-        }
-
-        pumpTime = MedtronicUtil.getPumpTime();
-
-        // Bolus
-        List<PumpHistoryEntry> treatments = getFilteredItems(PumpHistoryEntryType.Bolus);
-
-        if (isLogEnabled())
-            LOG.debug("ProcessHistoryData: Bolus [count={}, items={}]", treatments.size(), gson.toJson(treatments));
-
-        if (treatments.size() > 0) {
-            try {
-                processBolusEntries(treatments);
-            } catch (Exception ex) {
-                LOG.error("ProcessHistoryData: Error processing Bolus entries: " + ex.getMessage(), ex);
-                throw ex;
-            }
-        }
-
-        // TBR
-        List<PumpHistoryEntry> tbrs = getFilteredItems(PumpHistoryEntryType.TempBasalCombined);
-
-        if (isLogEnabled())
-            LOG.debug("ProcessHistoryData: TBRs Processed [count={}, items={}]", tbrs.size(), gson.toJson(tbrs));
-
-        if (tbrs.size() > 0) {
-            try {
-                processTBREntries(tbrs);
-            } catch (Exception ex) {
-                LOG.error("ProcessHistoryData: Error processing TBR entries: " + ex.getMessage(), ex);
-                throw ex;
-            }
-        }
-
-        // 'Delivery Suspend'
-        List<TempBasalProcessDTO> suspends = null;
-
-        try {
-            suspends = getSuspends();
-        } catch (Exception ex) {
-            LOG.error("ProcessHistoryData: Error getting Suspend entries: " + ex.getMessage(), ex);
-            throw ex;
-        }
-
-        if (isLogEnabled())
-            LOG.debug("ProcessHistoryData: 'Delivery Suspend' Processed [count={}, items={}]", suspends.size(),
-                    gson.toJson(suspends));
-
-        if (isCollectionNotEmpty(suspends)) {
-            try {
-                processSuspends(suspends);
-            } catch (Exception ex) {
-                LOG.error("ProcessHistoryData: Error processing Suspends entries: " + ex.getMessage(), ex);
-                throw ex;
-            }
-        }
-    }
-
-
-    public void processNewHistoryData_NewDb() {
 
         // TDD
         List<PumpHistoryEntry> tdds = getFilteredItems(PumpHistoryEntryType.EndResultTotals, getTDDType());
@@ -481,18 +405,11 @@ public class MedtronicHistoryData {
             tdds = prepareTDDs(tdds);
         }
 
-        pumpTime = MedtronicUtil.getPumpTime();
-
         // Bolus
         List<PumpHistoryEntry> treatments = getFilteredItems(PumpHistoryEntryType.Bolus);
 
         if (isLogEnabled())
             LOG.debug("ProcessHistoryData: Bolus [count={}, items={}]", treatments.size(), gson.toJson(treatments));
-
-        if (isCollectionNotEmpty(treatments)) {
-            prepareBoluses(treatments); // add carbs if wizard entries exists
-        }
-
 
         // TBR
         List<PumpHistoryEntry> tbrs = getFilteredItems(PumpHistoryEntryType.TempBasalCombined);
@@ -528,24 +445,61 @@ public class MedtronicHistoryData {
 
         BlockingAppRepository.INSTANCE.runTransactionForResult(new MedtronicHistoryProcessTransaction(
                 getPumpSerial(),
-                convertPumpHistoryEntries2(tdds),
-                convertPumpHistoryEntries2(treatments),
-                convertPumpHistoryEntries2(tbrs),
+                convertPumpHistoryEntriesToKotlin(tdds),
+                convertPumpHistoryEntriesToKotlin(treatments),
+                convertPumpHistoryEntriesToKotlin(tbrs),
                 oldEntryAdded,
-                null,
-                isLogEnabled(),
-                null //
+                convertSuspendResumeEntriesToKotlin(suspends),
+                isLogEnabled()
         ));
 
 
 
     }
 
+    private List<MedtronicHistoryProcessTransaction.MDTTempBasalProcess> convertSuspendResumeEntriesToKotlin(List<TempBasalProcessDTO> listInput) {
+
+        List<MedtronicHistoryProcessTransaction.MDTTempBasalProcess> outList = new ArrayList<>();
+
+        if (isCollectionNotEmpty(listInput)) {
+            for (TempBasalProcessDTO tempBasalProcessDTO : listInput) {
+
+                MedtronicHistoryProcessTransaction.MDTTempBasalProcess.Operation operation = MedtronicHistoryProcessTransaction.MDTTempBasalProcess.Operation.Undefined;
+
+                switch(tempBasalProcessDTO.processOperation) {
+
+                    case Add:
+                        operation = MedtronicHistoryProcessTransaction.MDTTempBasalProcess.Operation.Add;
+                        break;
+
+                    case Edit:
+                        operation = MedtronicHistoryProcessTransaction.MDTTempBasalProcess.Operation.Edit;
+                        break;
+
+                    default:
+                        break;
+                }
+
+                outList.add(
+                        new MedtronicHistoryProcessTransaction.MDTTempBasalProcess(
+                                createKotlinTempBasalEntry(tempBasalProcessDTO.itemOne),
+                                tempBasalProcessDTO.itemTwo == null ? null : createKotlinTempBasalEntry(tempBasalProcessDTO.itemTwo),
+                                operation
+                        )
+                );
+            }
+        }
+
+        return outList;
+    }
+
+
     private List<PumpHistoryEntry> prepareTDDs(List<PumpHistoryEntry> tddsIn) {
 
         List<PumpHistoryEntry> tdds = filterTDDs(tddsIn);
         return tdds;
     }
+
 
     private boolean prepareTBRs(List<PumpHistoryEntry> entryList) {
 
@@ -570,73 +524,102 @@ public class MedtronicHistoryData {
 
     }
 
-    private void prepareBoluses(List<PumpHistoryEntry> treatments) {
-        // FIXME
+
+    private List<MedtronicHistoryProcessTransaction.PumpHistoryEntry> convertPumpHistoryEntriesToKotlin(List<PumpHistoryEntry> inList) {
+        List<MedtronicHistoryProcessTransaction.PumpHistoryEntry> outList = new ArrayList<>();
+
+        for (PumpHistoryEntry pumpHistoryEntry : inList) {
+
+            MedtronicHistoryProcessTransaction.PumpHistoryEntry.EntryType entryType = MedtronicHistoryProcessTransaction.PumpHistoryEntry.EntryType.None;
+            Long pumpId = pumpHistoryEntry.getPumpId();
+            Object dataObject = null;
+
+            switch (pumpHistoryEntry.getEntryType()) {
+
+                case Bolus: {
+                    entryType = MedtronicHistoryProcessTransaction.PumpHistoryEntry.EntryType.Bolus;
+
+                    BolusDTO dto = (BolusDTO)pumpHistoryEntry.getDecodedDataEntry("Object");
+                    Integer carbs = 0;
+
+                    if (pumpHistoryEntry.containsDecodedData("Estimate")) {
+                        BolusWizardDTO bolusWizard = (BolusWizardDTO) pumpHistoryEntry.getDecodedDataEntry("Estimate");
+                        carbs = bolusWizard.carbs;
+                    }
+
+                    dataObject =
+                            new MedtronicHistoryProcessTransaction.MDTBolus(
+                                    pumpHistoryEntry.atechDateTime,
+                                    PumpBolusType.isNormalBolus(dto.getBolusType()) ?
+                                            MedtronicHistoryProcessTransaction.MDTBolus.Type.NORMAL :
+                                            MedtronicHistoryProcessTransaction.MDTBolus.Type.EXTENDED,
+                                    dto.getDeliveredAmount(),
+                                    carbs,
+                                    dto.getDuration(),
+                                    pumpId
+                            );
+
+                } break;
+
+
+                case TempBasalCombined: {
+                    entryType = MedtronicHistoryProcessTransaction.PumpHistoryEntry.EntryType.TemporaryBasal;
+
+                    dataObject = createKotlinTempBasalEntry(pumpHistoryEntry);
+
+                } break;
+
+
+                case EndResultTotals:
+                case DailyTotals515:
+                case DailyTotals522:
+                case DailyTotals523: {
+                    entryType = MedtronicHistoryProcessTransaction.PumpHistoryEntry.EntryType.TDD;
+
+                    DailyTotalsDTO dto = (DailyTotalsDTO)pumpHistoryEntry.getDecodedDataEntry("Object");
+
+                    dataObject =
+                            new MedtronicHistoryProcessTransaction.MDTDailyTotals(
+                                    pumpHistoryEntry.atechDateTime,
+                                    dto.getInsulinBolus(),
+                                    dto.getInsulinBasal(),
+                                    dto.getInsulinTotal(),
+                                    pumpId
+                            );
+
+                } break;
+
+                default:
+                    LOG.warn("Unsupported entryType: " + pumpHistoryEntry.getEntryType());
+
+            }
+
+            outList.add(new MedtronicHistoryProcessTransaction.PumpHistoryEntry(
+                    pumpHistoryEntry.atechDateTime,
+                    entryType,
+                    pumpId,
+                    dataObject
+            ));
+
+        }
+
+        return outList;
     }
 
 
-    private List<MedtronicHistoryProcessTransaction.PumpHistoryEntry> convertPumpHistoryEntries2(List<PumpHistoryEntry> inList) {
-        // FIXME
+    private MedtronicHistoryProcessTransaction.MDTTemporaryBasal createKotlinTempBasalEntry(PumpHistoryEntry pumpHistoryEntry) {
+        TempBasalPair dto = (TempBasalPair)pumpHistoryEntry.getDecodedDataEntry("Object");
 
-
-
-        return null;
+        return new MedtronicHistoryProcessTransaction.MDTTemporaryBasal(
+                        pumpHistoryEntry.atechDateTime,
+                        dto.getInsulinRate(),
+                        dto.getDurationMinutes(),
+                        pumpHistoryEntry.getPumpId()
+                );
     }
 
 
 
-    private List<MDTPumpHistoryEntry> convertPumpHistoryEntries(List<PumpHistoryEntry> inList) {
-
-
-
-
-        return null;
-    }
-
-
-
-    @Deprecated
-    private void processTDDs(List<PumpHistoryEntry> tddsIn) {
-        //TODO: Fix Medtronic Driver
-
-        List<PumpHistoryEntry> tdds = filterTDDs(tddsIn);
-
-//        if (isLogEnabled())
-//            LOG.debug(getLogPrefix() + "TDDs found: {}.\n{}", tdds.size(), gson.toJson(tdds));
-//
-//        List<TDD> tddsDb = databaseHelper.getTDDsForLastXDays(3);
-//
-//        for (PumpHistoryEntry tdd : tdds) {
-//
-//            TDD tddDbEntry = findTDD(tdd.atechDateTime, tddsDb);
-//
-//            DailyTotalsDTO totalsDTO = (DailyTotalsDTO) tdd.getDecodedData().get("Object");
-//
-//            //LOG.debug("DailyTotals: {}", totalsDTO);
-//
-//            if (tddDbEntry == null) {
-//                TDD tddNew = new TDD();
-//                totalsDTO.setTDD(tddNew);
-//
-//                if (isLogEnabled())
-//                    LOG.debug("TDD Add: {}", tddNew);
-//
-//                databaseHelper.createOrUpdateTDD(tddNew);
-//
-//            } else {
-//
-//                if (!totalsDTO.doesEqual(tddDbEntry)) {
-//                    totalsDTO.setTDD(tddDbEntry);
-//
-//                    if (isLogEnabled())
-//                        LOG.debug("TDD Edit: {}", tddDbEntry);
-//
-//                    databaseHelper.createOrUpdateTDD(tddDbEntry);
-//                }
-//            }
-//        }
-
-    }
 
     public void setPumpStatusObject(MedtronicPumpStatus pumpStatusLocal) {
         pumpStatus = pumpStatusLocal;
@@ -660,474 +643,6 @@ public class MedtronicHistoryData {
 
     }
 
-    @Deprecated
-    private void processBolusEntries(List<PumpHistoryEntry> entryList) {
-
-        long oldestTimestamp = getOldestTimestamp(entryList);
-
-        List<? extends DBEntryWithTime> entriesFromHistory = getDatabaseEntriesByLastTimestamp(oldestTimestamp, ProcessHistoryRecord.Bolus);
-
-//        LOG.debug(processHistoryRecord.getDescription() + " List (before filter): {}, FromDb={}", gsonPretty.toJson(entryList),
-//                gsonPretty.toJson(entriesFromHistory));
-
-        filterOutAlreadyAddedEntries(entryList, entriesFromHistory);
-
-        if (entryList.isEmpty())
-            return;
-
-//        LOG.debug(processHistoryRecord.getDescription() + " List (after filter): {}, FromDb={}", gsonPretty.toJson(entryList),
-//                gsonPretty.toJson(entriesFromHistory));
-
-        if (isCollectionEmpty(entriesFromHistory)) {
-            for (PumpHistoryEntry treatment : entryList) {
-                if (isLogEnabled())
-                    LOG.debug("Add Bolus (no db entry): " + treatment);
-
-                addBolus(treatment, null);
-            }
-        } else {
-            for (PumpHistoryEntry treatment : entryList) {
-                DBEntryWithTime treatmentDb = findDbEntry(treatment, entriesFromHistory);
-                if (isLogEnabled())
-                    LOG.debug("Add Bolus {} - (entryFromDb={}) ", treatment, treatmentDb);
-
-                addBolus(treatment, (Treatment) treatmentDb);
-            }
-        }
-    }
-
-    @Deprecated
-    private void processTBREntries(List<PumpHistoryEntry> entryList) {
-
-        Collections.reverse(entryList);
-
-        TempBasalPair tbr = (TempBasalPair) entryList.get(0).getDecodedDataEntry("Object");
-
-        boolean readOldItem = false;
-
-        if (tbr.isCancelTBR()) {
-            PumpHistoryEntry oneMoreEntryFromHistory = getOneMoreEntryFromHistory(PumpHistoryEntryType.TempBasalCombined);
-
-            if (oneMoreEntryFromHistory != null) {
-                entryList.add(0, oneMoreEntryFromHistory);
-                readOldItem = true;
-            } else {
-                entryList.remove(0);
-            }
-        }
-
-        long oldestTimestamp = getOldestTimestamp(entryList);
-
-        List<? extends DBEntryWithTime> entriesFromHistory = getDatabaseEntriesByLastTimestamp(oldestTimestamp, ProcessHistoryRecord.TBR);
-
-        if (isLogEnabled())
-            LOG.debug(ProcessHistoryRecord.TBR.getDescription() + " List (before filter): {}, FromDb={}", gson.toJson(entryList),
-                    gson.toJson(entriesFromHistory));
-
-
-        TempBasalProcessDTO processDTO = null;
-        List<TempBasalProcessDTO> processList = new ArrayList<>();
-
-        for (PumpHistoryEntry treatment : entryList) {
-
-            TempBasalPair tbr2 = (TempBasalPair) treatment.getDecodedDataEntry("Object");
-
-            if (tbr2.isCancelTBR()) {
-
-                if (processDTO != null) {
-                    processDTO.itemTwo = treatment;
-
-                    if (readOldItem) {
-                        processDTO.processOperation = TempBasalProcessDTO.Operation.Edit;
-                        readOldItem = false;
-                    }
-                } else {
-                    LOG.error("processDTO was null - shouldn't happen. ItemTwo={}", treatment);
-                }
-            } else {
-                if (processDTO != null) {
-                    processList.add(processDTO);
-                }
-
-                processDTO = new TempBasalProcessDTO();
-                processDTO.itemOne = treatment;
-                processDTO.processOperation = TempBasalProcessDTO.Operation.Add;
-            }
-        }
-
-        if (processDTO != null) {
-            processList.add(processDTO);
-        }
-
-
-        if (isCollectionNotEmpty(processList)) {
-
-            for (TempBasalProcessDTO tempBasalProcessDTO : processList) {
-
-                if (tempBasalProcessDTO.processOperation == TempBasalProcessDTO.Operation.Edit) {
-                    // edit
-                    TemporaryBasal tempBasal = findTempBasalWithPumpId(tempBasalProcessDTO.itemOne.getPumpId(), entriesFromHistory);
-
-                    if (tempBasal != null) {
-
-                        tempBasal.durationInMinutes = tempBasalProcessDTO.getDuration();
-                        //TODO: Fix Medtronic driver
-                        //databaseHelper.createOrUpdate(tempBasal);
-
-                        if (isLogEnabled())
-                            LOG.debug("Edit " + ProcessHistoryRecord.TBR.getDescription() + " - (entryFromDb={}) ", tempBasal);
-                    } else {
-                        LOG.error("TempBasal not found. Item: {}", tempBasalProcessDTO.itemOne);
-                    }
-
-                } else {
-                    // add
-
-                    PumpHistoryEntry treatment = tempBasalProcessDTO.itemOne;
-
-                    TempBasalPair tbr2 = (TempBasalPair) treatment.getDecodedData().get("Object");
-                    tbr2.setDurationMinutes(tempBasalProcessDTO.getDuration());
-
-                    TemporaryBasal tempBasal = findTempBasalWithPumpId(tempBasalProcessDTO.itemOne.getPumpId(), entriesFromHistory);
-
-                    if (tempBasal == null) {
-                        DBEntryWithTime treatmentDb = findDbEntry(treatment, entriesFromHistory);
-
-                        if (isLogEnabled())
-                            LOG.debug("Add " + ProcessHistoryRecord.TBR.getDescription() + " {} - (entryFromDb={}) ", treatment, treatmentDb);
-
-                        addTBR(treatment, (info.nightscout.androidaps.database.entities.TemporaryBasal) treatmentDb);
-                    } else {
-                        // this shouldn't happen
-                        if (tempBasal.durationInMinutes != tempBasalProcessDTO.getDuration()) {
-                            LOG.debug("Found entry with wrong duration (shouldn't happen)... updating");
-                            tempBasal.durationInMinutes = tempBasalProcessDTO.getDuration();
-                        }
-
-                    }
-                } // if
-            } // for
-
-        } // collection
-    }
-
-
-    private TemporaryBasal findTempBasalWithPumpId(long pumpId, List<? extends DBEntry> entriesFromHistory) {
-
-        //TODO: Fix Medtronic driver
-
-        for (DBEntry dbObjectBase : entriesFromHistory) {
-            TemporaryBasal tbr = (TemporaryBasal) dbObjectBase;
-
-            if (tbr.pumpId == pumpId) {
-                return tbr;
-            }
-        }
-        //TODO: Fix Medtronic driver
-        //TemporaryBasal tempBasal = databaseHelper.findTempBasalByPumpId(pumpId);
-        return null;
-    }
-
-
-    /**
-     * findDbEntry - finds Db entries in database, while theoretically this should have same dateTime they
-     *   don't. Entry on pump is few seconds before treatment in AAPS, and on manual boluses on pump there
-     *   is no treatment at all. For now we look fro tratment that was from 0s - 1m59s within pump entry.
-     *
-     * @param treatment Pump Entry
-     * @param entriesFromHistory entries from history
-     *
-     * @return DbObject from AAPS (if found)
-     */
-    @Deprecated
-    private DBEntryWithTime findDbEntry(PumpHistoryEntry treatment, List<? extends DBEntryWithTime> entriesFromHistory) {
-        //TODO: Fix Medtronic driver
-
-        long proposedTime = DateTimeUtil.toMillisFromATD(treatment.atechDateTime);
-
-        //proposedTime += (this.pumpTime.timeDifference * 1000);
-
-        if (entriesFromHistory.size() == 0) {
-            return null;
-        } else if (entriesFromHistory.size() == 1) {
-            return entriesFromHistory.get(0);
-        }
-
-        for (int min = 0; min < 2; min += 1) {
-
-            for (int sec = 0; sec <= 50; sec += 10) {
-
-                if (min == 1 && sec == 50) {
-                    sec = 59;
-                }
-
-                int diff = (sec * 1000);
-
-                List<DBEntryWithTime> outList = new ArrayList<>();
-
-                for (DBEntryWithTime treatment1 : entriesFromHistory) {
-
-                    if ((treatment1.getTimestamp() > proposedTime - diff) && (treatment1.getTimestamp() < proposedTime + diff)) {
-                        outList.add(treatment1);
-                    }
-                }
-
-//                LOG.debug("Entries: (timeDiff=[min={},sec={}],count={},list={})", min, sec, outList.size(),
-//                        gsonPretty.toJson(outList));
-
-                if (outList.size() == 1) {
-                    return outList.get(0);
-                }
-
-                if (min == 0 && sec == 10 && outList.size() > 1) {
-                    if (isLogEnabled())
-                        LOG.error("Too many entries (with too small diff): (timeDiff=[min={},sec={}],count={},list={})",
-                                min, sec, outList.size(), gson.toJson(outList));
-                }
-            }
-        }
-
-        return null;
-    }
-
-
-    private List<? extends DBEntryWithTime> getDatabaseEntriesByLastTimestamp(long startTimestamp, ProcessHistoryRecord processHistoryRecord) {
-        if (processHistoryRecord == ProcessHistoryRecord.Bolus) {
-            // TODO: maybe ok
-            return BlockingAppRepository.INSTANCE.getBolusesFromTimeForPump(startTimestamp, InterfaceIDs.PumpType.MEDTRONIC, Integer.parseInt(pumpStatus.serialNumber));
-        } else {
-            //TODO: Fix Medtronic driver
-            //return databaseHelper.getTemporaryBasalsDataFromTime(startTimestamp, true);
-            return null;
-        }
-    }
-
-
-    private void filterOutAlreadyAddedEntries(List<PumpHistoryEntry> entryList, List<? extends DBEntryWithTime> treatmentsFromHistory) {
-
-        if (isCollectionEmpty(treatmentsFromHistory))
-            return;
-
-        List<DBEntry> removeTreatmentsFromHistory = new ArrayList<>();
-
-        for (DBEntryWithTime treatment : treatmentsFromHistory) {
-
-            if (treatment.getInterfaceIDs().getPumpId() != 0) {
-
-                PumpHistoryEntry selectedBolus = null;
-
-                for (PumpHistoryEntry bolus : entryList) {
-                    if (bolus.getPumpId() == treatment.getInterfaceIDs().getPumpId()) {
-                        selectedBolus = bolus;
-                        break;
-                    }
-                }
-
-                if (selectedBolus != null) {
-                    entryList.remove(selectedBolus);
-
-                    removeTreatmentsFromHistory.add(treatment);
-                }
-            }
-        }
-
-        treatmentsFromHistory.removeAll(removeTreatmentsFromHistory);
-    }
-
-
-    private void addBolus(PumpHistoryEntry bolus, Treatment treatment) {
-
-        BolusDTO bolusDTO = (BolusDTO) bolus.getDecodedData().get("Object");
-
-        if (treatment == null) {
-
-            switch (bolusDTO.getBolusType()) {
-                case Normal: {
-                    DetailedBolusInfo detailedBolusInfo = new DetailedBolusInfo();
-
-                    detailedBolusInfo.date = tryToGetByLocalTime(bolus.atechDateTime);
-                    detailedBolusInfo.source = Source.PUMP;
-                    detailedBolusInfo.pumpId = bolus.getPumpId();
-                    detailedBolusInfo.insulin = bolusDTO.getDeliveredAmount();
-
-                    addCarbsFromEstimate(detailedBolusInfo, bolus);
-
-                    bolus.setLinkedObject(detailedBolusInfo);
-
-                    BlockingAppRepository.INSTANCE.runTransactionForResult(new PumpInsertMealBolusTransaction(
-                            tryToGetByLocalTime(bolus.atechDateTime),
-                            bolusDTO.getDeliveredAmount(),
-                            detailedBolusInfo.carbs,
-                            Bolus.Type.NORMAL,
-                            InterfaceIDs.PumpType.MEDTRONIC,
-                            getPumpSerial(),
-                            bolus.getPumpId(),
-                            null
-                    ));
-
-                    if (isLogEnabled())
-                        LOG.debug("addBolus - [date={},pumpId={}, insulin={}, newRecord={}]", detailedBolusInfo.date,
-                                detailedBolusInfo.pumpId, detailedBolusInfo.insulin, detailedBolusInfo);
-                }
-                break;
-
-                case Audio:
-                case Extended: {
-                    ExtendedBolus extendedBolus = new ExtendedBolus();
-                    extendedBolus.date = tryToGetByLocalTime(bolus.atechDateTime);
-                    extendedBolus.source = Source.PUMP;
-                    extendedBolus.insulin = bolusDTO.getDeliveredAmount();
-                    extendedBolus.pumpId = bolus.getPumpId();
-                    extendedBolus.isValid = true;
-                    extendedBolus.durationInMinutes = bolusDTO.getDuration();
-
-                    bolus.setLinkedObject(extendedBolus);
-
-                    BlockingAppRepository.INSTANCE.runTransactionForResult(new PumpExtendedBolusTransaction(
-                            tryToGetByLocalTime(bolus.atechDateTime),
-                            bolusDTO.getDeliveredAmount(),
-                            0L,
-                            bolusDTO.getDuration(),
-                            false,
-                            InterfaceIDs.PumpType.MEDTRONIC,
-                            getPumpSerial(),
-                            bolus.getPumpId()
-                    ));
-
-                    if (isLogEnabled())
-                        LOG.debug("addBolus - Extended [date={},pumpId={}, insulin={}, duration={}]", extendedBolus.date,
-                                extendedBolus.pumpId, extendedBolus.insulin, extendedBolus.durationInMinutes);
-
-                }
-                break;
-            }
-
-        } else {
-
-            DetailedBolusInfo detailedBolusInfo = DetailedBolusInfoStorage.findDetailedBolusInfo(treatment.date);
-            if (detailedBolusInfo == null) {
-                detailedBolusInfo = new DetailedBolusInfo();
-            }
-
-            detailedBolusInfo.date = treatment.date;
-            detailedBolusInfo.source = Source.PUMP;
-            detailedBolusInfo.pumpId = bolus.getPumpId();
-            detailedBolusInfo.insulin = bolusDTO.getDeliveredAmount();
-            detailedBolusInfo.carbs = treatment.carbs;
-
-            addCarbsFromEstimate(detailedBolusInfo, bolus);
-
-            BlockingAppRepository.INSTANCE.runTransactionForResult(new PumpInsertUpdateBolusTransaction(
-                    tryToGetByLocalTime(bolus.atechDateTime),
-                    bolusDTO.getDeliveredAmount(),
-                    detailedBolusInfo.carbs,
-                    Bolus.Type.NORMAL,
-                    InterfaceIDs.PumpType.MEDTRONIC,
-                    getPumpSerial(),
-                    bolus.getPumpId(),
-                    null
-            ));
-
-            bolus.setLinkedObject(detailedBolusInfo);
-
-            if (isLogEnabled())
-                LOG.debug("editBolus - [date={},pumpId={}, insulin={}, newRecord={}]", detailedBolusInfo.date,
-                        detailedBolusInfo.pumpId, detailedBolusInfo.insulin, detailedBolusInfo);
-
-        }
-    }
-
-
-    private void addCarbsFromEstimate(DetailedBolusInfo detailedBolusInfo, PumpHistoryEntry bolus) {
-
-        if (bolus.containsDecodedData("Estimate")) {
-
-            BolusWizardDTO bolusWizard = (BolusWizardDTO) bolus.getDecodedData().get("Estimate");
-
-            detailedBolusInfo.carbs = bolusWizard.carbs;
-        }
-    }
-
-
-    private void addTBR(PumpHistoryEntry treatment, info.nightscout.androidaps.database.entities.TemporaryBasal temporaryBasalDbInput) {
-
-        TempBasalPair tbr = (TempBasalPair) treatment.getDecodedData().get("Object");
-
-        info.nightscout.androidaps.database.entities.TemporaryBasal temporaryBasalDb = temporaryBasalDbInput;
-        String operation = "editTBR";
-
-        long date = 0;
-
-        if (temporaryBasalDb == null) {
-            //temporaryBasalDb = new info.nightscout.androidaps.database.entities.TemporaryBasal();
-            //temporaryBasalDb.date = tryToGetByLocalTime(treatment.atechDateTime);
-            date = tryToGetByLocalTime(treatment.atechDateTime);
-            operation = "addTBR";
-        } else {
-            date = temporaryBasalDb.getTimestamp();
-        }
-
-        TemporaryBasal temporaryBasalX = new TemporaryBasal();
-        temporaryBasalX.source = Source.PUMP;
-        temporaryBasalX.pumpId = treatment.getPumpId();
-        temporaryBasalX.durationInMinutes = tbr.getDurationMinutes();
-        temporaryBasalX.absoluteRate = tbr.getInsulinRate();
-        temporaryBasalX.isAbsolute = !tbr.isPercent();
-        temporaryBasalX.date = date;
-
-        treatment.setLinkedObject(temporaryBasalX);
-
-
-        BlockingAppRepository.INSTANCE.runTransactionForResult(new PumpInsertUpdateTemporaryBasalTransaction(
-                date,
-                0L,
-                tbr.getDurationMinutes(),
-                !tbr.isPercent(),
-                tbr.getInsulinRate(),
-                InterfaceIDs.PumpType.MEDTRONIC,
-                getPumpSerial(),
-                treatment.getPumpId()
-        ));
-
-        if (isLogEnabled())
-            LOG.debug(operation + " - [date={},pumpId={}, rate={} {}, duration={}]", //
-                    temporaryBasalX.date, //
-                    temporaryBasalX.pumpId, //
-                    temporaryBasalX.isAbsolute ? String.format(Locale.ENGLISH, "%.2f", temporaryBasalX.absoluteRate) :
-                            String.format(Locale.ENGLISH, "%d", temporaryBasalX.percentRate), //
-                    temporaryBasalX.isAbsolute ? "U/h" : "%", //
-                    temporaryBasalX.durationInMinutes);
-    }
-
-
-    private void processSuspends(List<TempBasalProcessDTO> tempBasalProcessList) {
-
-        for (TempBasalProcessDTO tempBasalProcess : tempBasalProcessList) {
-            //TODO: Fix Medtronic driver
-            //TemporaryBasal tempBasal = databaseHelper.findTempBasalByPumpId(tempBasalProcess.itemOne.getPumpId());
-            TemporaryBasal tempBasal = null;
-
-            if (tempBasal == null) {
-                // add
-                tempBasal = new TemporaryBasal();
-                tempBasal.date = tryToGetByLocalTime(tempBasalProcess.itemOne.atechDateTime);
-
-                tempBasal.source = Source.PUMP;
-                tempBasal.pumpId = tempBasalProcess.itemOne.getPumpId();
-                tempBasal.durationInMinutes = tempBasalProcess.getDuration();
-                tempBasal.absoluteRate = 0.0d;
-                tempBasal.isAbsolute = true;
-
-                tempBasalProcess.itemOne.setLinkedObject(tempBasal);
-                tempBasalProcess.itemTwo.setLinkedObject(tempBasal);
-
-                //TODO: Fix Medtronic driver
-                //databaseHelper.createOrUpdate(tempBasal);
-
-            }
-        }
-
-    }
 
 
     private List<TempBasalProcessDTO> getSuspends() {
@@ -1141,6 +656,7 @@ public class MedtronicHistoryData {
 
         return outList;
     }
+
 
     private List<TempBasalProcessDTO> getSuspendResumeRecords() {
         List<PumpHistoryEntry> filteredItems = getFilteredItems(this.newHistory, //
