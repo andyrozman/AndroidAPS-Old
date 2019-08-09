@@ -23,7 +23,7 @@ class PumpInsertUpdateBolusTransaction(
 
     override fun run() {
 
-        var currentBolus : Bolus? = null
+        var currentBolus : Bolus?
 
         if (pumpId > 0) {
             currentBolus = database.bolusDao.getBolusByPumpId(pumpType, pumpSerial, pumpId)

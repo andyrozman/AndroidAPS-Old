@@ -82,9 +82,6 @@ public class MedtronicHistoryData {
 
     private Gson gson;
 
-    private DatabaseHelper databaseHelper = MainApp.getDbHelper();
-    private ClockDTO pumpTime;
-
     private long lastIdUsed = 0;
     private MedtronicPumpStatus pumpStatus;
 
@@ -626,25 +623,6 @@ public class MedtronicHistoryData {
     }
 
 
-    private enum ProcessHistoryRecord {
-        Bolus("Bolus"),
-        TBR("TBR"),
-        Suspend("Suspend");
-
-        private String description;
-
-        ProcessHistoryRecord(String desc) {
-            this.description = desc;
-        }
-
-        public String getDescription() {
-            return this.description;
-        }
-
-    }
-
-
-
     private List<TempBasalProcessDTO> getSuspends() {
 
         List<TempBasalProcessDTO> outList = new ArrayList<>();
@@ -848,102 +826,6 @@ public class MedtronicHistoryData {
         }
 
         return tddsOut.size() == 0 ? tdds : tddsOut;
-    }
-
-
-    private TDD findTDD(long atechDateTime, List<TDD> tddsDb) {
-
-        for (TDD tdd : tddsDb) {
-
-            if (DateTimeUtil.isSameDayATDAndMillis(atechDateTime, tdd.date)) {
-                return tdd;
-            }
-        }
-
-        return null;
-    }
-
-    private long tryToGetByLocalTime(long atechDateTime) {
-        return DateTimeUtil.toMillisFromATD(atechDateTime);
-    }
-
-
-    private int getOldestDateDifference(List<PumpHistoryEntry> treatments) {
-
-        long dt = Long.MAX_VALUE;
-        PumpHistoryEntry currentTreatment = null;
-
-        if (isCollectionEmpty(treatments)) {
-            return 8; // default return of 6 (5 for diif on history reading + 2 for max allowed difference) minutes
-        }
-
-        for (PumpHistoryEntry treatment : treatments) {
-
-            if (treatment.atechDateTime < dt) {
-                dt = treatment.atechDateTime;
-                currentTreatment = treatment;
-            }
-        }
-
-        LocalDateTime oldestEntryTime = null;
-
-        try {
-
-            oldestEntryTime = DateTimeUtil.toLocalDateTime(dt);
-            oldestEntryTime = oldestEntryTime.minusMinutes(3);
-
-//            if (this.pumpTime.timeDifference < 0) {
-//                oldestEntryTime = oldestEntryTime.plusSeconds(this.pumpTime.timeDifference);
-//            }
-        } catch (Exception ex) {
-            LOG.error("Problem decoding date from last record: {}" + currentTreatment);
-            return 8; // default return of 6 minutes
-        }
-
-        LocalDateTime now = new LocalDateTime();
-
-        Minutes minutes = Minutes.minutesBetween(oldestEntryTime, now);
-
-        // returns oldest time in history, with calculated time difference between pump and phone, minus 5 minutes
-        if (isLogEnabled())
-            LOG.debug("Oldest entry: {}, pumpTimeDifference={}, newDt={}, currentTime={}, differenceMin={}", dt,
-                    this.pumpTime.timeDifference, oldestEntryTime, now, minutes.getMinutes());
-
-        return minutes.getMinutes();
-    }
-
-
-    private long getOldestTimestamp(List<PumpHistoryEntry> treatments) {
-
-        long dt = Long.MAX_VALUE;
-        PumpHistoryEntry currentTreatment = null;
-
-        for (PumpHistoryEntry treatment : treatments) {
-
-            if (treatment.atechDateTime < dt) {
-                dt = treatment.atechDateTime;
-                currentTreatment = treatment;
-            }
-        }
-
-        //LocalDateTime oldestEntryTime = null;
-
-        try {
-
-            GregorianCalendar oldestEntryTime = DateTimeUtil.toGregorianCalendar(dt);
-            oldestEntryTime.add(Calendar.MINUTE, -2);
-
-            return oldestEntryTime.getTimeInMillis();
-
-//            if (this.pumpTime.timeDifference < 0) {
-//                oldestEntryTime = oldestEntryTime.plusSeconds(this.pumpTime.timeDifference);
-//            }
-        } catch (Exception ex) {
-            LOG.error("Problem decoding date from last record: {}" + currentTreatment);
-            return 8; // default return of 6 minutes
-        }
-
-
     }
 
 

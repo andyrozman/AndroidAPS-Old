@@ -21,7 +21,6 @@ class MedtronicHistoryProcessTransaction(
 ) : Transaction<Unit>() {
 
     private val LOG = LoggerFactory.getLogger("DATABASE")
-    //private val logEnabled = logEnabledInput
     private val medtronicUtil = MedtronicUtilKotlin()
     private val gson = Gson()
 
@@ -32,7 +31,7 @@ class MedtronicHistoryProcessTransaction(
             try {
                 processTDDs(tddList)
             } catch (ex: Exception) {
-                LOG.error("MedtronicHistoryProcessTransaction: Error processing TDD entries: " + ex.message, ex)
+                LOG.error(getLogPrefix() + "run: Error processing TDD entries: " + ex.message, ex)
                 throw ex
             }
         }
@@ -43,7 +42,7 @@ class MedtronicHistoryProcessTransaction(
             try {
                 processBolusEntries(bolusList)
             } catch (ex: Exception) {
-                LOG.error("MedtronicHistoryProcessTransaction: Error processing Bolus entries: " + ex.message, ex)
+                LOG.error(getLogPrefix() + "run: Error processing Bolus entries: " + ex.message, ex)
                 throw ex
             }
         }
@@ -53,7 +52,7 @@ class MedtronicHistoryProcessTransaction(
             try {
                 processTBREntries(temporaryBasalList)
             } catch (ex: Exception) {
-                LOG.error("MedtronicHistoryProcessTransaction: Error processing TBR entries: " + ex.message, ex)
+                LOG.error(getLogPrefix() + "run: Error processing TBR entries: " + ex.message, ex)
                 throw ex
             }
         }
@@ -63,7 +62,7 @@ class MedtronicHistoryProcessTransaction(
             try {
                 processSuspends(suspendResumeList)
             } catch (ex: Exception) {
-                LOG.error("MedtronicHistoryProcessTransaction: Error processing Suspends entries: " + ex.message, ex)
+                LOG.error(getLogPrefix() + "run: Error processing Suspends entries: " + ex.message, ex)
                 throw ex
             }
         }
@@ -90,7 +89,7 @@ class MedtronicHistoryProcessTransaction(
                 val timestamp = medtronicUtil.toMillisFromATD(tdd.atechDateTime)
 
                 if (logEnabled)
-                    LOG.debug("TDD Add: {}", totalsDTO)
+                    LOG.debug(getLogPrefix() + "TDD Add: {}", totalsDTO)
 
 
                 val utcOffset = TimeZone.getDefault().getOffset(timestamp).toLong()
@@ -112,7 +111,7 @@ class MedtronicHistoryProcessTransaction(
                 if (!totalsDTO.isEqual(tddDbEntry)) {
 
                     if (logEnabled)
-                        LOG.debug("TDD Edit: Before: {}", tddDbEntry)
+                        LOG.debug(getLogPrefix() + "TDD Edit: Before: {}", tddDbEntry)
 
                     tddDbEntry.basalAmount = totalsDTO.basalInsulin
                     tddDbEntry.bolusAmount = totalsDTO.bolusInsulin
@@ -120,7 +119,7 @@ class MedtronicHistoryProcessTransaction(
                     tddDbEntry.interfaceIDs.pumpId = totalsDTO.pumpId
 
                     if (logEnabled)
-                        LOG.debug("TDD Edit: After: {}", tddDbEntry)
+                        LOG.debug(getLogPrefix() + "TDD Edit: After: {}", tddDbEntry)
 
                     database.totalDailyDoseDao.updateExistingEntry(tddDbEntry)
                 }
@@ -173,7 +172,7 @@ class MedtronicHistoryProcessTransaction(
         val entriesFromHistory = getDatabaseEntriesByLastTimestamp(oldestTimestamp, ProcessHistoryRecord.TBR)
 
         if (logEnabled)
-            LOG.debug(ProcessHistoryRecord.TBR.description + " List (before filter): {}, FromDb={}", gson.toJson(entryList),
+            LOG.debug(getLogPrefix() + ProcessHistoryRecord.TBR.description + " List (before filter): {}, FromDb={}", gson.toJson(entryList),
                     gson.toJson(entriesFromHistory))
 
 
@@ -229,7 +228,7 @@ class MedtronicHistoryProcessTransaction(
                         if (logEnabled)
                             LOG.debug("Edit " + ProcessHistoryRecord.TBR.description + " - (entryFromDb={}) ", tempBasal)
                     } else {
-                        LOG.error("TempBasal not found, can't edit. Item: {}", tempBasalProcessDTO.itemOne)
+                        LOG.error(getLogPrefix() + "TempBasal not found, can't edit. Item: {}", tempBasalProcessDTO.itemOne)
                     }
 
                 } else {
@@ -303,7 +302,7 @@ class MedtronicHistoryProcessTransaction(
             return oldestEntryTime.timeInMillis
 
         } catch (ex: Exception) {
-            LOG.error("Problem decoding date from last record: {}" + currentTreatment!!)
+            LOG.error(getLogPrefix() + "Problem decoding date from last record: {}" + currentTreatment!!)
             val gcnow = GregorianCalendar()
             gcnow.add(Calendar.MINUTE, -8)
             return gcnow.timeInMillis // default return of 8 minutes
@@ -392,7 +391,7 @@ class MedtronicHistoryProcessTransaction(
                     )
 
                     if (logEnabled)
-                        LOG.debug("addBolus - [date={},pumpId={}, insulin={}]", timestamp,
+                        LOG.debug(getLogPrefix() + "addBolus - [date={},pumpId={}, insulin={}]", timestamp,
                                 bolusDTO.pumpId, bolusDTO.amount)
                 }
 
@@ -406,7 +405,7 @@ class MedtronicHistoryProcessTransaction(
                     )
 
                     if (logEnabled)
-                        LOG.debug("addBolus - Extended [date={},pumpId={}, insulin={}, duration={}]", timestamp,
+                        LOG.debug(getLogPrefix() + "addBolus - Extended [date={},pumpId={}, insulin={}, duration={}]", timestamp,
                                 bolusDTO.pumpId, bolusDTO.amount, bolusDTO.duration)
 
                 }
@@ -422,7 +421,7 @@ class MedtronicHistoryProcessTransaction(
             database.bolusDao.updateExistingEntry(bolusDb)
 
             if (logEnabled)
-                LOG.debug("editBolus - [date={},pumpId={}, insulin={}]", timestamp,
+                LOG.debug(getLogPrefix() + "editBolus - [date={},pumpId={}, insulin={}]", timestamp,
                         bolusDTO.pumpId, bolusDTO.amount)
 
         }
@@ -517,7 +516,7 @@ class MedtronicHistoryProcessTransaction(
         }
 
         if (logEnabled)
-            LOG.debug("$operation - [date={},pumpId={}, rate={} {}, duration={}]", //
+            LOG.debug(getLogPrefix() + "$operation - [date={},pumpId={}, rate={} {}, duration={}]", //
                     treatment.atechDateTime,
                     treatment.pumpId, //
                     String.format(Locale.ENGLISH, "%.2f", treatment.amount),
@@ -603,7 +602,7 @@ class MedtronicHistoryProcessTransaction(
         return null
     }
 
-    fun getLogPrefix() : String {
+    private fun getLogPrefix() : String {
         return "MedtronicHistoryProcessTransaction::"
     }
 
@@ -637,7 +636,7 @@ class MedtronicHistoryProcessTransaction(
     ) : DbObjectMDT(atechDateTime) {
 
         fun isCancelTBR() : Boolean {
-            var mu = MedtronicUtilKotlin()
+            val mu = MedtronicUtilKotlin()
             return mu.isSame(amount, 0.0) && duration == 0L
         }
 
@@ -695,8 +694,8 @@ class MedtronicHistoryProcessTransaction(
 
         fun calculateDuration() : Long {
 
-            var duration = 0L
-            var medtronicUtil = MedtronicUtilKotlin()
+            var duration: Long
+            val medtronicUtil = MedtronicUtilKotlin()
 
             if (itemTwo == null) {
                 duration = itemOne!!.duration
@@ -712,7 +711,7 @@ class MedtronicHistoryProcessTransaction(
     }
 
 
-    private enum class ProcessHistoryRecord private constructor(val description: String) {
+    private enum class ProcessHistoryRecord constructor(val description: String) {
         Bolus("Bolus"),
         TBR("TBR"),
         Suspend("Suspend")

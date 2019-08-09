@@ -24,9 +24,8 @@ class PumpInsertTotalDailyDoseTransaction(
 
     override fun run() {
         val utcOffset = TimeZone.getDefault().getOffset(timestamp).toLong()
-        var entries = 1
 
-        val bolusDBId = database.totalDailyDoseDao.insertNewEntry(TotalDailyDose(
+        database.totalDailyDoseDao.insertNewEntry(TotalDailyDose(
                 timestamp = timestamp,
                 utcOffset = utcOffset,
                 basalAmount = basalAmount,

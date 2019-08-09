@@ -20,9 +20,9 @@ class PumpInsertUpdateTemporaryBasalTransaction(
 
     override fun run() {
 
-        var currentTemporaryBasal : TemporaryBasal? = null
+        var currentTemporaryBasal : TemporaryBasal?
 
-        var duration = 0L
+        var duration : Long
 
         if (durationMs>0)
             duration = durationMs

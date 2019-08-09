@@ -3,6 +3,7 @@ package info.nightscout.androidaps.database.daos
 import androidx.room.Dao
 import androidx.room.Query
 import info.nightscout.androidaps.database.TABLE_TOTAL_DAILY_DOSES
+import info.nightscout.androidaps.database.embedments.InterfaceIDs
 import info.nightscout.androidaps.database.entities.TotalDailyDose
 import io.reactivex.Single
 

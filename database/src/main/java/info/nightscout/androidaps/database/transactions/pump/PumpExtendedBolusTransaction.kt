@@ -20,7 +20,7 @@ class PumpExtendedBolusTransaction(
 
 
     override fun run() {
-        var duration = 0L
+        var duration: Long
 
         if (durationMs>0)
             duration = durationMs

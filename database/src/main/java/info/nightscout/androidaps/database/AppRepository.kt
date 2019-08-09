@@ -83,8 +83,6 @@ object AppRepository {
 
     fun getAllProfileSwitches(): Flowable<List<ProfileSwitch>> = database.profileSwitchDao.getAllProfileSwitches().subscribeOn(Schedulers.io())
 
-    fun getBolusesFromTimeForPump(startTimestamp: Long, pumpType: InterfaceIDs.PumpType, pumpSerial: Long) : Flowable<List<Bolus>> = database.bolusDao.getBolusesStartingWithTimeForPump(startTimestamp, pumpType, pumpSerial).subscribeOn(Schedulers.io())
-
     fun getMergedBolusData(start: Long, end: Long) = Single.fromCallable {
         val boluses = database.bolusDao.getBolusesInTimeRange(start, end)
         val carbs = database.carbsDao.getCarbsInTimeRange(start, end).toMutableList()
