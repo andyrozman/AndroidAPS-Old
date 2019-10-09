@@ -524,10 +524,16 @@ public class MedtronicHistoryData {
         } else {
             entriesFromHistory = getDatabaseEntriesByLastTimestamp(oldestTimestamp, ProcessHistoryRecord.Bolus);
 
+            LOG.debug("Database entries found: {}", gson.toJson(entriesFromHistory));
+
             filterOutAlreadyAddedEntries(entryList, entriesFromHistory);
 
-            if (entryList.isEmpty())
+            LOG.debug("Database entries found (After Filter): {}", gson.toJson(entriesFromHistory));
+
+            if (entryList.isEmpty()) {
+                LOG.debug("All Pump Bolus entries filtered out.");
                 return;
+            }
         }
 
 //        LOG.debug(processHistoryRecord.getDescription() + " List (before filter): {}, FromDb={}", gsonPretty.toJson(entryList),
