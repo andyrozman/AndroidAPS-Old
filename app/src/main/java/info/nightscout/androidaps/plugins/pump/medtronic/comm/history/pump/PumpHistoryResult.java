@@ -98,7 +98,6 @@ public class PumpHistoryResult {
             case Date: {
                 LOG.debug("PE. Date search: Search date: {}", this.searchDate);
 
-
                 for (PumpHistoryEntry unprocessedEntry : unprocessedEntries) {
 
                     if (unprocessedEntry.atechDateTime == null || unprocessedEntry.atechDateTime == 0) {
@@ -109,9 +108,10 @@ public class PumpHistoryResult {
                     if (unprocessedEntry.isAfter(this.searchDate)) {
                         this.validEntries.add(unprocessedEntry);
                     } else {
-                        LOG.debug("PE. PumpHistoryResult. Not after.. Unprocessed Entry [year={},entry={}]",
-                                DateTimeUtil.getYear(unprocessedEntry.atechDateTime), unprocessedEntry);
+//                        LOG.debug("PE. PumpHistoryResult. Not after.. Unprocessed Entry [year={},entry={}]",
+//                                DateTimeUtil.getYear(unprocessedEntry.atechDateTime), unprocessedEntry);
 
+                        // if pump resets to factory settings it would have older history entries, we ignore those until time is set correctly
                         if (DateTimeUtil.getYear(unprocessedEntry.atechDateTime) > 2015)
                             olderEntries++;
                     }
@@ -119,7 +119,6 @@ public class PumpHistoryResult {
 
                 if (olderEntries > 0) {
                     //Collections.sort(this.validEntries, new PumpHistoryEntry.Comparator());
-
                     searchFinished = true;
                 }
             }

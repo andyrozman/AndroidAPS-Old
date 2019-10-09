@@ -5,12 +5,10 @@ import com.google.gson.GsonBuilder;
 
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.LocalDateTime;
-import org.joda.time.Minutes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Collections;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
@@ -59,6 +57,7 @@ import info.nightscout.androidaps.utils.SP;
 //  all times that time changed (TZ, DST, etc.). Data needs to be returned in batches (time_changed batches, so that we can
 //  handle it. It would help to assign sort_ids to items (from oldest (1) to newest (x)
 
+// All things marked with "TODO: Fix db code" needs to be updated in new 2.5 database code
 
 public class MedtronicHistoryData {
 
@@ -517,15 +516,23 @@ public class MedtronicHistoryData {
 
         long oldestTimestamp = getOldestTimestamp(entryList);
 
-        List<? extends DbObjectBase> entriesFromHistory = getDatabaseEntriesByLastTimestamp(oldestTimestamp, ProcessHistoryRecord.Bolus);
+        List<? extends DbObjectBase> entriesFromHistory = null;
+
+        if (oldestTimestamp == -1) {
+            LOG.warn("Old timestamp is -1, so we return empty list. (shouldn't happen) - Bolus");
+            entriesFromHistory = new ArrayList<>();
+        } else {
+            entriesFromHistory = getDatabaseEntriesByLastTimestamp(oldestTimestamp, ProcessHistoryRecord.Bolus);
+
+            filterOutAlreadyAddedEntries(entryList, entriesFromHistory);
+
+            if (entryList.isEmpty())
+                return;
+        }
 
 //        LOG.debug(processHistoryRecord.getDescription() + " List (before filter): {}, FromDb={}", gsonPretty.toJson(entryList),
 //                gsonPretty.toJson(entriesFromHistory));
 
-        filterOutAlreadyAddedEntries(entryList, entriesFromHistory);
-
-        if (entryList.isEmpty())
-            return;
 
 //        LOG.debug(processHistoryRecord.getDescription() + " List (after filter): {}, FromDb={}", gsonPretty.toJson(entryList),
 //                gsonPretty.toJson(entriesFromHistory));
@@ -570,7 +577,14 @@ public class MedtronicHistoryData {
 
         long oldestTimestamp = getOldestTimestamp(entryList);
 
-        List<? extends DbObjectBase> entriesFromHistory = getDatabaseEntriesByLastTimestamp(oldestTimestamp, ProcessHistoryRecord.TBR);
+        List<? extends DbObjectBase> entriesFromHistory = null;
+
+        if (oldestTimestamp == -1) {
+            LOG.warn("Old timestamp is -1, so we return empty list. (shouldn't happen) - TBR");
+            entriesFromHistory = new ArrayList<>();
+        } else {
+            entriesFromHistory = getDatabaseEntriesByLastTimestamp(oldestTimestamp, ProcessHistoryRecord.TBR);
+        }
 
         if (isLogEnabled())
             LOG.debug(ProcessHistoryRecord.TBR.getDescription() + " List (before filter): {}, FromDb={}", gson.toJson(entryList),
@@ -681,12 +695,11 @@ public class MedtronicHistoryData {
 
     /**
      * findDbEntry - finds Db entries in database, while theoretically this should have same dateTime they
-     *   don't. Entry on pump is few seconds before treatment in AAPS, and on manual boluses on pump there
-     *   is no treatment at all. For now we look fro tratment that was from 0s - 1m59s within pump entry.
+     * don't. Entry on pump is few seconds before treatment in AAPS, and on manual boluses on pump there
+     * is no treatment at all. For now we look fro tratment that was from 0s - 1m59s within pump entry.
      *
-     * @param treatment Pump Entry
+     * @param treatment          Pump Entry
      * @param entriesFromHistory entries from history
-     *
      * @return DbObject from AAPS (if found)
      */
     private DbObjectBase findDbEntry(PumpHistoryEntry treatment, List<? extends DbObjectBase> entriesFromHistory) {
@@ -698,7 +711,11 @@ public class MedtronicHistoryData {
         if (entriesFromHistory.size() == 0) {
             return null;
         } else if (entriesFromHistory.size() == 1) {
-            return entriesFromHistory.get(0);
+            // TODO: Fix db code
+            // if difference is bigger than 2 minutes we discard entry
+            long maxMillisAllowed = DateTimeUtil.getMillisFromATDWithAddedMinutes(treatment.atechDateTime, 2);
+
+            return (entriesFromHistory.get(0).getDate() > maxMillisAllowed) ? null : entriesFromHistory.get(0);
         }
 
         for (int min = 0; min < 2; min += 1) {
@@ -1152,51 +1169,52 @@ public class MedtronicHistoryData {
     }
 
 
-    private int getOldestDateDifference(List<PumpHistoryEntry> treatments) {
-
-        long dt = Long.MAX_VALUE;
-        PumpHistoryEntry currentTreatment = null;
-
-        if (isCollectionEmpty(treatments)) {
-            return 8; // default return of 6 (5 for diif on history reading + 2 for max allowed difference) minutes
-        }
-
-        for (PumpHistoryEntry treatment : treatments) {
-
-            if (treatment.atechDateTime < dt) {
-                dt = treatment.atechDateTime;
-                currentTreatment = treatment;
-            }
-        }
-
-        LocalDateTime oldestEntryTime = null;
-
-        try {
-
-            oldestEntryTime = DateTimeUtil.toLocalDateTime(dt);
-            oldestEntryTime = oldestEntryTime.minusMinutes(3);
-
-//            if (this.pumpTime.timeDifference < 0) {
-//                oldestEntryTime = oldestEntryTime.plusSeconds(this.pumpTime.timeDifference);
+//    private int getOldestDateDifference(List<PumpHistoryEntry> treatments) {
+//
+//        long dt = Long.MAX_VALUE;
+//        PumpHistoryEntry currentTreatment = null;
+//
+//        if (isCollectionEmpty(treatments)) {
+//            return 8; // default return of 6 (5 for diif on history reading + 2 for max allowed difference) minutes
+//        }
+//
+//        for (PumpHistoryEntry treatment : treatments) {
+//
+//            if (treatment.atechDateTime < dt) {
+//                dt = treatment.atechDateTime;
+//                currentTreatment = treatment;
 //            }
-        } catch (Exception ex) {
-            LOG.error("Problem decoding date from last record: {}" + currentTreatment);
-            return 8; // default return of 6 minutes
-        }
+//        }
+//
+//        LocalDateTime oldestEntryTime = null;
+//
+//        try {
+//
+//            oldestEntryTime = DateTimeUtil.toLocalDateTime(dt);
+//            oldestEntryTime = oldestEntryTime.minusMinutes(3);
+//
+////            if (this.pumpTime.timeDifference < 0) {
+////                oldestEntryTime = oldestEntryTime.plusSeconds(this.pumpTime.timeDifference);
+////            }
+//        } catch (Exception ex) {
+//            LOG.error("Problem decoding date from last record: {}" + currentTreatment);
+//            return 8; // default return of 6 minutes
+//        }
+//
+//        LocalDateTime now = new LocalDateTime();
+//
+//        Minutes minutes = Minutes.minutesBetween(oldestEntryTime, now);
+//
+//        // returns oldest time in history, with calculated time difference between pump and phone, minus 5 minutes
+//        if (isLogEnabled())
+//            LOG.debug("Oldest entry: {}, pumpTimeDifference={}, newDt={}, currentTime={}, differenceMin={}", dt,
+//                    this.pumpTime.timeDifference, oldestEntryTime, now, minutes.getMinutes());
+//
+//        return minutes.getMinutes();
+//    }
 
-        LocalDateTime now = new LocalDateTime();
 
-        Minutes minutes = Minutes.minutesBetween(oldestEntryTime, now);
-
-        // returns oldest time in history, with calculated time difference between pump and phone, minus 5 minutes
-        if (isLogEnabled())
-            LOG.debug("Oldest entry: {}, pumpTimeDifference={}, newDt={}, currentTime={}, differenceMin={}", dt,
-                    this.pumpTime.timeDifference, oldestEntryTime, now, minutes.getMinutes());
-
-        return minutes.getMinutes();
-    }
-
-
+    // TODO: Fix db code
     private long getOldestTimestamp(List<PumpHistoryEntry> treatments) {
 
         long dt = Long.MAX_VALUE;
@@ -1210,21 +1228,22 @@ public class MedtronicHistoryData {
             }
         }
 
-        //LocalDateTime oldestEntryTime = null;
+        if (dt == Long.MAX_VALUE) {
+            LOG.error("Problem finding correct entry to return oldest timestamp.");
+            return -1;
+        }
 
         try {
 
-            GregorianCalendar oldestEntryTime = DateTimeUtil.toGregorianCalendar(dt);
-            oldestEntryTime.add(Calendar.MINUTE, -2);
+            long milis = DateTimeUtil.getMillisFromATDWithAddedMinutes(dt, -2);
 
-            return oldestEntryTime.getTimeInMillis();
+            LOG.debug("getOldestTimestamp: Found oldest entry as {}, return oldest date as ", dt, DateTimeUtil.toStringFromMilis(milis));
 
-//            if (this.pumpTime.timeDifference < 0) {
-//                oldestEntryTime = oldestEntryTime.plusSeconds(this.pumpTime.timeDifference);
-//            }
+            return milis;
+
         } catch (Exception ex) {
             LOG.error("Problem decoding date from last record: {}" + currentTreatment);
-            return 8; // default return of 6 minutes
+            return -1; // default return of 6 minutes
         }
 
 

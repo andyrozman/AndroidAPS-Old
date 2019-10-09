@@ -90,7 +90,6 @@ public class DateTimeUtil {
         }
     }
 
-
     public static long toATechDate(LocalDateTime ldt) {
         long atechDateTime = 0L;
 
@@ -249,5 +248,19 @@ public class DateTimeUtil {
         Minutes minutes = Minutes.minutesBetween(toLocalDateTime(date1), toLocalDateTime(date2));
 
         return minutes.getMinutes();
+    }
+
+    public static long getMillisFromATDWithAddedMinutes(long atd, int minutesDiff) {
+        GregorianCalendar oldestEntryTime = DateTimeUtil.toGregorianCalendar(atd);
+        oldestEntryTime.add(Calendar.MINUTE, minutesDiff);
+
+        return oldestEntryTime.getTimeInMillis();
+    }
+
+
+    public static String toStringFromMilis(long millis) {
+        GregorianCalendar gc = new GregorianCalendar();
+        gc.setTimeInMillis(millis);
+        return toString(gc);
     }
 }
