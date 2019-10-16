@@ -3,7 +3,7 @@ package info.nightscout.androidaps.db;
 import android.content.Context;
 import android.database.DatabaseUtils;
 import android.database.sqlite.SQLiteDatabase;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 
 import com.j256.ormlite.android.apptools.OrmLiteSqliteOpenHelper;
 import com.j256.ormlite.dao.CloseableIterator;
@@ -434,7 +434,7 @@ public class DatabaseHelper extends OrmLiteSqliteOpenHelper {
             return null;
 
         for (int i = 0; i < bgList.size(); i++)
-            if (bgList.get(i).value > 39)
+            if (bgList.get(i).value >= 39)
                 return bgList.get(i);
         return null;
     }

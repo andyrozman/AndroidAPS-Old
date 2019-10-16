@@ -3,7 +3,7 @@ package info.nightscout.androidaps.queue;
 import android.content.Context;
 import android.content.Intent;
 import android.os.SystemClock;
-import android.support.v7.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatActivity;
 import android.text.Html;
 import android.text.Spanned;
 
@@ -143,11 +143,11 @@ public class CommandQueue {
         return queue.size();
     }
 
-    public Command performing() {
+    Command performing() {
         return performing;
     }
 
-    public void resetPerforming() {
+    void resetPerforming() {
         performing = null;
     }
 

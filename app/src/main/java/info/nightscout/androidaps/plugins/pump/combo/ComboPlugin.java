@@ -2,10 +2,10 @@ package info.nightscout.androidaps.plugins.pump.combo;
 
 import android.content.DialogInterface;
 import android.os.SystemClock;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.app.FragmentActivity;
-import android.support.v7.app.AlertDialog;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.FragmentActivity;
+import androidx.appcompat.app.AlertDialog;
 
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -85,7 +85,7 @@ public class ComboPlugin extends PluginBase implements PumpInterface, Constraint
     private final static PumpDescription pumpDescription = new PumpDescription();
 
     @NonNull
-    private final RuffyCommands ruffyScripter;
+    private RuffyCommands ruffyScripter;
 
     @NonNull
     private static final ComboPump pump = new ComboPump();
@@ -907,6 +907,8 @@ public class ComboPlugin extends PluginBase implements PumpInterface, Constraint
                     ConfigBuilderPlugin.getPlugin().getCommandQueue().cancelTempBasal(true, null);
                 }
                 updateLocalData(commandResult);
+            } else {
+                forceRuffyReconnect();
             }
         } finally {
             if (activity != null) {
@@ -1396,4 +1398,7 @@ public class ComboPlugin extends PluginBase implements PumpInterface, Constraint
         return false;
     }
 
+    private void  forceRuffyReconnect(){
+        ruffyScripter = ruffyScripter.recreate(MainApp.instance());
+    }
 }

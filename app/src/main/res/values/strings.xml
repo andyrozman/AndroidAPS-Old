@@ -1335,6 +1335,12 @@
     <string name="very_old_version">very old version</string>
     <string name="new_version_warning">New version for at least %1$d days available! Fallback to LGS after 60 days, loop will be disabled after 90 days</string>
     <string name="pump_commerror_label">Comm. Errors:</string>
+    <string name="twohours">2h</string>
+    <string name="formatinsulinunits">%1$.2fU</string>
+
+    <string name="dexcom_app_patched">Dexcom App (patched)</string>
+    <string name="dexcom_short">DXCM</string>
+    <string name="description_source_dexcom">Receive BG values from the patched Dexcom app.</string>
 
     <plurals name="objective_days">
         <item quantity="one">%1$d day</item>

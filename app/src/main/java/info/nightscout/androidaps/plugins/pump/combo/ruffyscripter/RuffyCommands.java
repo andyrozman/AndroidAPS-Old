@@ -1,6 +1,7 @@
 package info.nightscout.androidaps.plugins.pump.combo.ruffyscripter;
 
 import info.nightscout.androidaps.plugins.pump.combo.ruffyscripter.history.PumpHistoryRequest;
+import android.content.Context;
 
 public interface RuffyCommands {
     /** Issues a bolus issues updates on progress through via {@link BolusProgressReporter}. */
@@ -27,6 +28,8 @@ public interface RuffyCommands {
     boolean isConnected();
 
     void disconnect();
+
+    RuffyCommands recreate(Context context);
 
     /** Read the state of the pump, which encompasses all information displayed on the main menu. */
     CommandResult readPumpState();
