@@ -257,6 +257,40 @@ public abstract class RileyLinkService extends Service {
     }
 
 
+    public double doTuneUpDeviceNoStatusChange() {
+
+        RileyLinkUtil.setServiceState(RileyLinkServiceState.TuneUpDevice);
+        MedtronicUtil.setPumpDeviceState(PumpDeviceState.Sleeping);
+
+        double lastGoodFrequency = 0.0d;
+
+        if (rileyLinkServiceData.lastGoodFrequency == null) {
+            lastGoodFrequency = SP.getDouble(RileyLinkConst.Prefs.LastGoodDeviceFrequency, 0.0d);
+        } else {
+            lastGoodFrequency = rileyLinkServiceData.lastGoodFrequency;
+        }
+
+        double newFrequency;
+
+        newFrequency = getDeviceCommunicationManager().tuneForDevice();
+
+        if ((newFrequency != 0.0) && (newFrequency != lastGoodFrequency)) {
+            if (isLogEnabled())
+                LOG.info("Saving new pump frequency of {} MHz", newFrequency);
+            SP.putDouble(RileyLinkConst.Prefs.LastGoodDeviceFrequency, newFrequency);
+            rileyLinkServiceData.lastGoodFrequency = newFrequency;
+            rileyLinkServiceData.tuneUpDone = true;
+            rileyLinkServiceData.lastTuneUpTime = System.currentTimeMillis();
+        }
+
+        return newFrequency;
+
+
+    }
+
+
+
+
     public void disconnectRileyLink() {
 
         if (this.rileyLinkBLE != null && this.rileyLinkBLE.isConnected()) {
