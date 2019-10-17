@@ -372,7 +372,7 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
             refreshAnyStatusThatNeedsToBeRefreshed();
         }
 
-       RxBus.INSTANCE.send(new EventMedtronicPumpValuesChanged());
+        RxBus.INSTANCE.send(new EventMedtronicPumpValuesChanged());
     }
 
 
@@ -386,7 +386,7 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
 
         RileyLinkServiceState rileyLinkServiceState = MedtronicUtil.getServiceState();
 
-        if (rileyLinkServiceState==null) {
+        if (rileyLinkServiceState == null) {
             LOG.error("RileyLink unreachable. RileyLinkServiceState is null.");
             return false;
         }
@@ -744,14 +744,16 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
 
         ClockDTO clock = MedtronicUtil.getPumpTime();
 
-        if (clock==null) { // retry
+        if (clock == null) { // retry
             medtronicUIComm.executeCommand(MedtronicCommandType.GetRealTimeClock);
 
             clock = MedtronicUtil.getPumpTime();
         }
 
-        if (clock==null)
+        if (clock == null) {
+            LOG.error("MedtronicPumpPlugin::checkTimeAndOptionallySetTime - Problem reading time from pump.");
             return;
+        }
 
         int timeDiff = Math.abs(clock.timeDifference);
 
@@ -1065,10 +1067,10 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
     @Override
     public PumpEnactResult setTempBasalPercent(Integer percent, Integer durationInMinutes, Profile profile,
                                                boolean enforceNew) {
-        if (percent==0) {
+        if (percent == 0) {
             return setTempBasalAbsolute(0.0d, durationInMinutes, profile, enforceNew);
         } else {
-            double absoluteValue = profile.getBasal() * (percent /100.0d);
+            double absoluteValue = profile.getBasal() * (percent / 100.0d);
             getMDTPumpStatus();
             absoluteValue = pumpStatusLocal.pumpType.determineCorrectBasalSize(absoluteValue);
             LOG.warn("setTempBasalPercent [MedtronicPumpPlugin] - You are trying to use setTempBasalPercent with percent other then 0% (%d). This will start setTempBasalAbsolute, with calculated value (%.3f). Result might not be 100% correct.", percent, absoluteValue);

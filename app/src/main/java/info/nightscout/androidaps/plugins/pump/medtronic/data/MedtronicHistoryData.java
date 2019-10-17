@@ -1243,12 +1243,12 @@ public class MedtronicHistoryData {
 
             long milis = DateTimeUtil.getMillisFromATDWithAddedMinutes(dt, -2);
 
-            LOG.debug("getOldestTimestamp: Found oldest entry as {}, return oldest date as ", dt, DateTimeUtil.toStringFromMilis(milis));
+            LOG.debug("getOldestTimestamp: Found oldest entry as {}, return oldest date as {}", dt, DateTimeUtil.toStringFromMilis(milis));
 
             return milis;
 
         } catch (Exception ex) {
-            LOG.error("Problem decoding date from last record: {}" + currentTreatment);
+            LOG.error("Problem decoding date from last record: {}", currentTreatment);
             return -1; // default return of 6 minutes
         }
 
