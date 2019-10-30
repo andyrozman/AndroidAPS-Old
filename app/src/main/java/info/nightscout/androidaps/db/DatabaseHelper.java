@@ -437,8 +437,8 @@ public class DatabaseHelper extends OrmLiteSqliteOpenHelper {
             converted.backing = tbr;
             converted.date = tbr.getTimestamp();
             converted.durationInMinutes = (int) Math.round(tbr.getDuration() / 60000D);
-            converted.isAbsolute = tbr.getAbsolute();
-            if (tbr.getAbsolute()) {
+            converted.isAbsolute = tbr.isAbsolute();
+            if (tbr.isAbsolute()) {
                 converted.absoluteRate = tbr.getRate();
             } else {
                 converted.percentRate = (int) Math.round(tbr.getRate());

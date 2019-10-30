@@ -1,9 +1,14 @@
 package info.nightscout.androidaps.database.transactions
 
-import info.nightscout.androidaps.database.AppRepository
 import info.nightscout.androidaps.database.entities.TherapyEvent
 import java.util.*
 
+/**
+ * Inserts a TherapyEvent into the database.
+ * If type is ACTIVITY or APS_OFFLINE, it will cancel the active at the specified timestamp
+ *      if there is one by adjusting the duration property.
+ * If type is ACTIVITY or APS_OFFLINE and duration is 0, no new entry will be inserted.
+ */
 class TherapyEventTransaction(
         val timestamp: Long,
         val type: TherapyEvent.Type,

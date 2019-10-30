@@ -16,8 +16,8 @@ data class APSResult(
         @PrimaryKey(autoGenerate = true)
         override var id: Long = 0,
         override var version: Int = 0,
-        override var lastModified: Long = -1,
-        override var valid: Boolean = true,
+        override var dateCreated: Long = -1,
+        override var isValid: Boolean = true,
         override var referenceId: Long? = null,
         @Embedded
         override var interfaceIDs_backing: InterfaceIDs? = null,
@@ -30,7 +30,7 @@ data class APSResult(
         var profileJson: String,
         var autosensDataJson: String?,
         var mealDataJson: String,
-        var microBolusAllowed: Boolean?,
+        var isMicroBolusAllowed: Boolean?,
         var resultJson: String
 ) : DBEntry, DBEntryWithTime {
         enum class Algorithm {

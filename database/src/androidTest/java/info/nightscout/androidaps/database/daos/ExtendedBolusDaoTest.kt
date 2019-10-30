@@ -14,7 +14,7 @@ class ExtendedBolusDaoTest : AbstractDaoTest<ExtendedBolus>() {
             utcOffset = 0,
             amount = 0.0,
             duration = TimeUnit.HOURS.toMillis(1),
-            emulatingTempBasal = false
+            isEmulatingTempBasal = false
     )
 
 }

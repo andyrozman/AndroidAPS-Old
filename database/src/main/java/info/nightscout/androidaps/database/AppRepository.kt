@@ -23,6 +23,8 @@ object AppRepository {
 
     val changeObservable: Observable<List<DBEntry>> = changeSubject
 
+    val databaseVersion = DATABASE_VERSION
+
     fun initialize(context: Context) {
         database = Room.databaseBuilder(context, AppDatabase::class.java, DB_FILE).build()
     }
@@ -69,7 +71,7 @@ object AppRepository {
 
     fun getTemporaryTargetsInTimeRange(start: Long, end: Long): Flowable<List<TemporaryTarget>> = database.temporaryTargetDao.getTemporaryTargetsInTimeRange(start, end).subscribeOn(Schedulers.io())
 
-    fun getTotalDailyDoses(amount: Int): Single<List<TotalDailyDose>> = database.totalDailyDoseDao.getTotalDailyDoses(amount)
+    fun getTotalDailyDoses(amount: Int): Single<List<TotalDailyDose>> = database.totalDailyDoseDao.getTotalDailyDoses(amount).subscribeOn(Schedulers.io())
 
     fun getLastTherapyEventByType(type: TherapyEvent.Type): Maybe<TherapyEvent> = database.therapyEventDao.getLastTherapyEventByType(type).subscribeOn(Schedulers.io())
 
@@ -83,6 +85,8 @@ object AppRepository {
 
     fun getAllProfileSwitches(): Flowable<List<ProfileSwitch>> = database.profileSwitchDao.getAllProfileSwitches().subscribeOn(Schedulers.io())
 
+    fun getTemporaryBasalActiveAtIncludingInvalidMaybe(timestamp: Long, pumpType: InterfaceIDs.PumpType): Maybe<TemporaryBasal> = database.temporaryBasalDao.getTemporaryBasalActiveAtIncludingInvalidMaybe(timestamp, pumpType).subscribeOn(Schedulers.io())
+
     fun getMergedBolusData(start: Long, end: Long) = Single.fromCallable {
         val boluses = database.bolusDao.getBolusesInTimeRange(start, end)
         val carbs = database.carbsDao.getCarbsInTimeRange(start, end).toMutableList()
@@ -90,7 +94,9 @@ object AppRepository {
         boluses.forEach {
             val mealLink = database.mealLinkDao.findByBolusId(it.id)
             if (mealLink != null) {
-                var carbEntry = mealLink.carbsId?.run { carbs.find { it.id == this } ?: AppRepository.database.carbsDao.findById(this) }
+                var carbEntry = mealLink.carbsId?.run {
+                    carbs.find { it.id == this } ?: AppRepository.database.carbsDao.findById(this)
+                }
                 if (carbEntry != null) {
                     carbs.remove(carbEntry)
                     if (carbEntry.timestamp != it.timestamp) {

@@ -4,15 +4,15 @@ import info.nightscout.androidaps.database.daos.MealLinkDao
 import info.nightscout.androidaps.database.entities.links.MealLink
 import info.nightscout.androidaps.database.interfaces.DBEntry
 
-class DelegatedMealLinkDao(changes: MutableList<DBEntry>, dao: MealLinkDao) : DelegatedDao(changes), MealLinkDao by dao {
+internal class DelegatedMealLinkDao(changes: MutableList<DBEntry>, private val dao: MealLinkDao) : DelegatedDao(changes), MealLinkDao by dao {
 
     override fun insertNewEntry(entry: MealLink): Long {
         changes.add(entry)
-        return super.insertNewEntry(entry)
+        return dao.insertNewEntry(entry)
     }
 
     override fun updateExistingEntry(entry: MealLink): Long {
         changes.add(entry)
-        return super.updateExistingEntry(entry)
+        return dao.updateExistingEntry(entry)
     }
 }

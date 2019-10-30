@@ -18,6 +18,7 @@ import info.nightscout.androidaps.events.EventNsFood;
 import info.nightscout.androidaps.events.EventNsTreatment;
 import info.nightscout.androidaps.logging.BundleLogger;
 import info.nightscout.androidaps.logging.L;
+import info.nightscout.androidaps.plugins.bus.RxBus;
 import info.nightscout.androidaps.plugins.general.nsclient.data.NSDeviceStatus;
 import info.nightscout.androidaps.plugins.general.nsclient.data.NSMbg;
 import info.nightscout.androidaps.plugins.general.nsclient.data.NSSettingsStatus;
@@ -100,7 +101,7 @@ public class DataService extends IntentService {
                         Intents.ACTION_REMOVED_TREATMENT.equals(action) ||
                         Intents.ACTION_NEW_CAL.equals(action) ||
                         Intents.ACTION_NEW_MBG.equals(action))
-                ) {
+        ) {
             handleNewDataFromNSClient(intent);
         } else if (Telephony.Sms.Intents.SMS_RECEIVED_ACTION.equals(action)) {
             SmsCommunicatorPlugin.getPlugin().handleNewData(intent);
@@ -254,7 +255,7 @@ public class DataService extends IntentService {
             if (date > now - 15 * 60 * 1000L && !notes.isEmpty()
                     && !enteredBy.equals(SP.getString("careportal_enteredby", "AndroidAPS"))) {
                 Notification announcement = new Notification(Notification.NSANNOUNCEMENT, notes, Notification.ANNOUNCEMENT, 60);
-                MainApp.bus().post(new EventNewNotification(announcement));
+                RxBus.INSTANCE.send(new EventNewNotification(announcement));
             }
         }
     }

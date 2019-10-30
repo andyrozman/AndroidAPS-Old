@@ -3,7 +3,6 @@ package info.nightscout.androidaps.plugins.treatments.fragments;
 import android.app.Activity;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.graphics.Paint;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -36,7 +35,7 @@ import info.nightscout.androidaps.events.EventProfileNeedsUpdate;
 import info.nightscout.androidaps.logging.L;
 import info.nightscout.androidaps.plugins.common.SubscriberFragment;
 import info.nightscout.androidaps.plugins.configBuilder.ProfileFunctions;
-import info.nightscout.androidaps.services.Intents;
+import info.nightscout.androidaps.plugins.general.nsclient.events.EventNSClientRestart;
 import info.nightscout.androidaps.utils.DateUtil;
 import info.nightscout.androidaps.utils.DecimalFormatter;
 import info.nightscout.androidaps.utils.SP;
@@ -200,8 +199,7 @@ public class TreatmentsProfileSwitchFragment extends SubscriberFragment implemen
                 builder.setPositiveButton(MainApp.gs(R.string.ok), new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int id) {
                         //MainApp.getDbHelper().resetProfileSwitch();
-                        Intent restartNSClient = new Intent(Intents.ACTION_RESTART);
-                        MainApp.instance().getApplicationContext().sendBroadcast(restartNSClient);
+                        MainApp.bus().post(new EventNSClientRestart());
                     }
                 });
                 builder.setNegativeButton(MainApp.gs(R.string.cancel), null);

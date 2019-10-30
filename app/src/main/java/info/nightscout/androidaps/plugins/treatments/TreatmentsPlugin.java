@@ -38,6 +38,7 @@ import info.nightscout.androidaps.interfaces.PluginType;
 import info.nightscout.androidaps.interfaces.PumpInterface;
 import info.nightscout.androidaps.interfaces.TreatmentsInterface;
 import info.nightscout.androidaps.logging.L;
+import info.nightscout.androidaps.plugins.bus.RxBus;
 import info.nightscout.androidaps.plugins.configBuilder.ConfigBuilderPlugin;
 import info.nightscout.androidaps.plugins.configBuilder.ProfileFunctions;
 import info.nightscout.androidaps.plugins.general.overview.events.EventDismissNotification;
@@ -103,6 +104,7 @@ public class TreatmentsPlugin extends PluginBase implements TreatmentsInterface 
     @Override
     protected void onStop() {
         MainApp.bus().register(this);
+        super.onStop();
     }
 
     public TreatmentService getService() {
@@ -287,14 +289,19 @@ public class TreatmentsPlugin extends PluginBase implements TreatmentsInterface 
     }
 
 
+    /**
+     * Returns all Treatments after specified timestamp. Also returns invalid entries (required to
+     * map "Fill Canulla" entries to history (and not to add double bolus for it)
+     *
+     * @param fromTimestamp
+     * @return
+     */
     @Override
     public List<Treatment> getTreatmentsFromHistoryAfterTimestamp(long fromTimestamp) {
         List<Treatment> in5minback = new ArrayList<>();
         long time = System.currentTimeMillis();
         synchronized (treatments) {
             for (Treatment t : treatments) {
-                if (!t.isValid)
-                    continue;
                 if (t.date <= time && t.date >= fromTimestamp)
                     in5minback.add(t);
             }
@@ -635,6 +642,7 @@ public class TreatmentsPlugin extends PluginBase implements TreatmentsInterface 
     }
 
     @Override
+    @Nullable
     public ProfileSwitch getProfileSwitchFromHistory(long time) {
         synchronized (profiles) {
             return (ProfileSwitch) profiles.getValueToTime(time);
@@ -651,7 +659,10 @@ public class TreatmentsPlugin extends PluginBase implements TreatmentsInterface 
     @Override
     public void addToHistoryProfileSwitch(ProfileSwitch profileSwitch) {
         ProfileSwitchUtilKt.storeInNewDatabase(profileSwitch);
-        MainApp.bus().post(new EventDismissNotification(Notification.PROFILE_SWITCH_MISSING));
+        RxBus.INSTANCE.send(new EventDismissNotification(Notification.PROFILE_SWITCH_MISSING));
+        //log.debug("Adding new TemporaryBasal record" + profileSwitch.log());
+        //MainApp.getDbHelper().createOrUpdate(profileSwitch);
+        //NSUpload.uploadProfileSwitch(profileSwitch);
     }
 
 

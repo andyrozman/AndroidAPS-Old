@@ -3,6 +3,9 @@ package info.nightscout.androidaps.database.transactions
 import info.nightscout.androidaps.database.entities.APSResult
 import java.util.*
 
+/**
+ * Inserts an APSResult into the database
+ */
 class InsertAPSResultTransaction(
         val timestamp: Long,
         val algorithm: APSResult.Algorithm,
@@ -27,7 +30,7 @@ class InsertAPSResultTransaction(
                 profileJson = profileJson,
                 autosensDataJson = autosensDataJson,
                 mealDataJson = mealDataJson,
-                microBolusAllowed = microBolusAllowed,
+                isMicroBolusAllowed = microBolusAllowed,
                 resultJson = resultJson
         ))
     }

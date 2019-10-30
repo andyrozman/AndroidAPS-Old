@@ -4,15 +4,15 @@ import info.nightscout.androidaps.database.daos.BolusCalculatorResultDao
 import info.nightscout.androidaps.database.entities.BolusCalculatorResult
 import info.nightscout.androidaps.database.interfaces.DBEntry
 
-class DelegatedBolusCalculatorResultDao(changes: MutableList<DBEntry>, dao: BolusCalculatorResultDao) : DelegatedDao(changes), BolusCalculatorResultDao by dao {
+internal class DelegatedBolusCalculatorResultDao(changes: MutableList<DBEntry>, private val dao: BolusCalculatorResultDao) : DelegatedDao(changes), BolusCalculatorResultDao by dao {
 
     override fun insertNewEntry(entry: BolusCalculatorResult): Long {
         changes.add(entry)
-        return super.insertNewEntry(entry)
+        return dao.insertNewEntry(entry)
     }
 
     override fun updateExistingEntry(entry: BolusCalculatorResult): Long {
         changes.add(entry)
-        return super.updateExistingEntry(entry)
+        return dao.updateExistingEntry(entry)
     }
 }

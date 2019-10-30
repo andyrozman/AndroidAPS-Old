@@ -3,7 +3,7 @@ package info.nightscout.androidaps.plugins.source
 import android.content.Intent
 import info.nightscout.androidaps.R
 import info.nightscout.androidaps.database.BlockingAppRepository
-import info.nightscout.androidaps.database.transactions.GlucoseValuesTransaction
+import info.nightscout.androidaps.database.transactions.CgmSourceTransaction
 import info.nightscout.androidaps.interfaces.BgSourceInterface
 import info.nightscout.androidaps.interfaces.PluginBase
 import info.nightscout.androidaps.interfaces.PluginDescription
@@ -46,7 +46,7 @@ object SourceXdripPlugin : PluginBase(PluginDescription()
             this.advancedFiltering = source?.let {
                 it.contains("G5 Native") || it.contains("G6 Native")
             } ?: false
-            BlockingAppRepository.runTransaction(GlucoseValuesTransaction(listOf(GlucoseValuesTransaction.GlucoseValue(
+            BlockingAppRepository.runTransaction(CgmSourceTransaction(listOf(CgmSourceTransaction.GlucoseValue(
                     timestamp = bundle.getLong(Intents.EXTRA_TIMESTAMP),
                     value = bundle.getDouble(Intents.EXTRA_BG_ESTIMATE),
                     raw = bundle.getDouble(Intents.EXTRA_RAW),

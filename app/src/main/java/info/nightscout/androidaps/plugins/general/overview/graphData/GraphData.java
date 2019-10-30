@@ -52,7 +52,6 @@ import info.nightscout.androidaps.plugins.treatments.TreatmentsPlugin;
 import info.nightscout.androidaps.utils.DecimalFormatter;
 import info.nightscout.androidaps.utils.GlucoseValueUtilsKt;
 import info.nightscout.androidaps.utils.Round;
-import info.nightscout.androidaps.utils.SP;
 
 /**
  * Created by mike on 18.10.2017.
@@ -360,7 +359,8 @@ public class GraphData {
 
         double now = System.currentTimeMillis();
         Scale actScale = new Scale();
-        IobTotal total = null;
+        IobTotal total;
+        double maxIAValue = 0;
 
         for (long time = fromTime; time <= toTime; time += 5 * 60 * 1000L) {
             Profile profile = ProfileFunctions.getInstance().getProfile(time);
@@ -373,6 +373,7 @@ public class GraphData {
                 actArrayHist.add(new ScaledDataPoint(time, act, actScale));
             else
                 actArrayPred.add(new ScaledDataPoint(time, act, actScale));
+            if (act > maxIAValue) maxIAValue = act;
         }
 
         ScaledDataPoint[] actData = new ScaledDataPoint[actArrayHist.size()];
@@ -395,7 +396,6 @@ public class GraphData {
         paint.setColor(MainApp.gc(R.color.activity));
         actSeriesPred.setCustomPaint(paint);
 
-        double maxIAValue = SP.getDouble(R.string.key_scale_insulin_activity, 0.05);
         if (useForScale) {
             maxY = maxIAValue;
             minY = -maxIAValue;
@@ -772,8 +772,8 @@ public class GraphData {
         @Override
         public int getColor() {
             String units = ProfileFunctions.getInstance().getProfileUnits();
-            Double lowLine = OverviewPlugin.getPlugin().determineLowLine(units);
-            Double highLine = OverviewPlugin.getPlugin().determineHighLine(units);
+            double lowLine = OverviewPlugin.INSTANCE.determineLowLine(units);
+            double highLine = OverviewPlugin.INSTANCE.determineHighLine(units);
             int color = MainApp.gc(R.color.inrange);
             double value = GlucoseValueUtilsKt.valueToUnits(glucoseValue.getValue(), units);
             if (value < lowLine)

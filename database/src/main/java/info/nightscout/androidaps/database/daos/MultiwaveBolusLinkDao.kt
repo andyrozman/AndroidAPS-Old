@@ -8,7 +8,7 @@ import info.nightscout.androidaps.database.entities.links.MultiwaveBolusLink
 
 @Suppress("FunctionName")
 @Dao
-interface MultiwaveBolusLinkDao : BaseDao<MultiwaveBolusLink> {
+internal interface MultiwaveBolusLinkDao : BaseDao<MultiwaveBolusLink> {
 
     @Query("SELECT * FROM $TABLE_MULTIWAVE_BOLUS_LINKS WHERE id = :id")
     override fun findById(id: Long): MultiwaveBolusLink?

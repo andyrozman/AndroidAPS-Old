@@ -27,7 +27,6 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.PopupMenu;
-import androidx.arch.core.util.Function;
 import androidx.core.content.res.ResourcesCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
@@ -55,13 +54,13 @@ import info.nightscout.androidaps.MainApp;
 import info.nightscout.androidaps.R;
 import info.nightscout.androidaps.data.IobTotal;
 import info.nightscout.androidaps.data.Profile;
+import info.nightscout.androidaps.data.QuickWizard;
 import info.nightscout.androidaps.data.QuickWizardEntry;
 import info.nightscout.androidaps.database.BlockingAppRepository;
 import info.nightscout.androidaps.database.entities.GlucoseValue;
 import info.nightscout.androidaps.database.entities.TemporaryTarget;
 import info.nightscout.androidaps.database.transactions.CancelTemporaryTargetTransaction;
 import info.nightscout.androidaps.database.transactions.InsertTemporaryTargetAndCancelCurrentTransaction;
-import info.nightscout.androidaps.db.CareportalEvent;
 import info.nightscout.androidaps.db.ExtendedBolus;
 import info.nightscout.androidaps.db.TempTarget;
 import info.nightscout.androidaps.db.TemporaryBasal;
@@ -91,7 +90,6 @@ import info.nightscout.androidaps.plugins.general.careportal.Dialogs.NewNSTreatm
 import info.nightscout.androidaps.plugins.general.careportal.OptionsToShow;
 import info.nightscout.androidaps.plugins.general.nsclient.NSUpload;
 import info.nightscout.androidaps.plugins.general.nsclient.data.NSDeviceStatus;
-import info.nightscout.androidaps.plugins.general.nsclient.data.NSSettingsStatus;
 import info.nightscout.androidaps.plugins.general.overview.activities.QuickWizardListActivity;
 import info.nightscout.androidaps.plugins.general.overview.dialogs.CalibrationDialog;
 import info.nightscout.androidaps.plugins.general.overview.dialogs.NewCarbsDialog;
@@ -256,17 +254,17 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
         apsModeView = (TextView) view.findViewById(R.id.overview_apsmode);
         tempTargetView = (TextView) view.findViewById(R.id.overview_temptarget);
 
-        iage = (TextView) view.findViewById(R.id.careportal_insulinage);
-        cage = (TextView) view.findViewById(R.id.careportal_canulaage);
-        sage = (TextView) view.findViewById(R.id.careportal_sensorage);
-        pbage = (TextView) view.findViewById(R.id.careportal_pbage);
+        iage = view.findViewById(R.id.careportal_insulinage);
+        cage = view.findViewById(R.id.careportal_canulaage);
+        sage = view.findViewById(R.id.careportal_sensorage);
+        pbage = view.findViewById(R.id.careportal_pbage);
 
-        iageView = (TextView) view.findViewById(R.id.overview_insulinage);
-        cageView = (TextView) view.findViewById(R.id.overview_canulaage);
-        reservoirView = (TextView) view.findViewById(R.id.overview_reservoirlevel);
-        sageView = (TextView) view.findViewById(R.id.overview_sensorage);
-        batteryView = (TextView) view.findViewById(R.id.overview_batterylevel);
-        statuslightsLayout = (LinearLayout) view.findViewById(R.id.overview_statuslights);
+        iageView = view.findViewById(R.id.overview_insulinage);
+        cageView = view.findViewById(R.id.overview_canulaage);
+        reservoirView = view.findViewById(R.id.overview_reservoirlevel);
+        sageView = view.findViewById(R.id.overview_sensorage);
+        batteryView = view.findViewById(R.id.overview_batterylevel);
+        statuslightsLayout = view.findViewById(R.id.overview_statuslights);
 
         bgGraph = (GraphView) view.findViewById(R.id.overview_bggraph);
         iobGraph = (GraphView) view.findViewById(R.id.overview_iobgraph);
@@ -332,6 +330,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
             rangeToDisplay = rangeToDisplay > 24 ? 6 : rangeToDisplay;
             SP.putInt(R.string.key_rangetodisplay, rangeToDisplay);
             updateGUI("rangeChange");
+            SP.putBoolean(R.string.key_objectiveusescale, true);
             return false;
         });
 
@@ -352,7 +351,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
             else
                 predictionsAvailable = false;
 
-            MenuItem item,dividerItem;
+            MenuItem item, dividerItem;
             CharSequence title;
             int titleMaxChars = 0;
             SpannableString s;
@@ -360,7 +359,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
             if (predictionsAvailable) {
                 item = popup.getMenu().add(Menu.NONE, CHARTTYPE.PRE.ordinal(), Menu.NONE, "Predictions");
                 title = item.getTitle();
-                if (titleMaxChars < title.length()) titleMaxChars =  title.length();
+                if (titleMaxChars < title.length()) titleMaxChars = title.length();
                 s = new SpannableString(title);
                 s.setSpan(new ForegroundColorSpan(ResourcesCompat.getColor(getResources(), R.color.prediction, null)), 0, s.length(), 0);
                 item.setTitle(s);
@@ -370,7 +369,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
 
             item = popup.getMenu().add(Menu.NONE, CHARTTYPE.BAS.ordinal(), Menu.NONE, MainApp.gs(R.string.overview_show_basals));
             title = item.getTitle();
-            if (titleMaxChars < title.length()) titleMaxChars =  title.length();
+            if (titleMaxChars < title.length()) titleMaxChars = title.length();
             s = new SpannableString(title);
             s.setSpan(new ForegroundColorSpan(ResourcesCompat.getColor(getResources(), R.color.basal, null)), 0, s.length(), 0);
             item.setTitle(s);
@@ -379,7 +378,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
 
             item = popup.getMenu().add(Menu.NONE, CHARTTYPE.ACTPRIM.ordinal(), Menu.NONE, MainApp.gs(R.string.overview_show_activity));
             title = item.getTitle();
-            if (titleMaxChars < title.length()) titleMaxChars =  title.length();
+            if (titleMaxChars < title.length()) titleMaxChars = title.length();
             s = new SpannableString(title);
             s.setSpan(new ForegroundColorSpan(ResourcesCompat.getColor(getResources(), R.color.activity, null)), 0, s.length(), 0);
             item.setTitle(s);
@@ -391,7 +390,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
 
             item = popup.getMenu().add(Menu.NONE, CHARTTYPE.IOB.ordinal(), Menu.NONE, MainApp.gs(R.string.overview_show_iob));
             title = item.getTitle();
-            if (titleMaxChars < title.length()) titleMaxChars =  title.length();
+            if (titleMaxChars < title.length()) titleMaxChars = title.length();
             s = new SpannableString(title);
             s.setSpan(new ForegroundColorSpan(ResourcesCompat.getColor(getResources(), R.color.iob, null)), 0, s.length(), 0);
             item.setTitle(s);
@@ -400,7 +399,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
 
             item = popup.getMenu().add(Menu.NONE, CHARTTYPE.COB.ordinal(), Menu.NONE, MainApp.gs(R.string.overview_show_cob));
             title = item.getTitle();
-            if (titleMaxChars < title.length()) titleMaxChars =  title.length();
+            if (titleMaxChars < title.length()) titleMaxChars = title.length();
             s = new SpannableString(title);
             s.setSpan(new ForegroundColorSpan(ResourcesCompat.getColor(getResources(), R.color.cob, null)), 0, s.length(), 0);
             item.setTitle(s);
@@ -409,7 +408,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
 
             item = popup.getMenu().add(Menu.NONE, CHARTTYPE.DEV.ordinal(), Menu.NONE, MainApp.gs(R.string.overview_show_deviations));
             title = item.getTitle();
-            if (titleMaxChars < title.length()) titleMaxChars =  title.length();
+            if (titleMaxChars < title.length()) titleMaxChars = title.length();
             s = new SpannableString(title);
             s.setSpan(new ForegroundColorSpan(ResourcesCompat.getColor(getResources(), R.color.deviations, null)), 0, s.length(), 0);
             item.setTitle(s);
@@ -418,7 +417,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
 
             item = popup.getMenu().add(Menu.NONE, CHARTTYPE.SEN.ordinal(), Menu.NONE, MainApp.gs(R.string.overview_show_sensitivity));
             title = item.getTitle();
-            if (titleMaxChars < title.length()) titleMaxChars =  title.length();
+            if (titleMaxChars < title.length()) titleMaxChars = title.length();
             s = new SpannableString(title);
             s.setSpan(new ForegroundColorSpan(ResourcesCompat.getColor(getResources(), R.color.ratio, null)), 0, s.length(), 0);
             item.setTitle(s);
@@ -427,7 +426,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
 
             item = popup.getMenu().add(Menu.NONE, CHARTTYPE.ACTSEC.ordinal(), Menu.NONE, MainApp.gs(R.string.overview_show_activity));
             title = item.getTitle();
-            if (titleMaxChars < title.length()) titleMaxChars =  title.length();
+            if (titleMaxChars < title.length()) titleMaxChars = title.length();
             s = new SpannableString(title);
             s.setSpan(new ForegroundColorSpan(ResourcesCompat.getColor(getResources(), R.color.activity, null)), 0, s.length(), 0);
             item.setTitle(s);
@@ -437,7 +436,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
             if (MainApp.devBranch) {
                 item = popup.getMenu().add(Menu.NONE, CHARTTYPE.DEVSLOPE.ordinal(), Menu.NONE, "Deviation slope");
                 title = item.getTitle();
-                if (titleMaxChars < title.length()) titleMaxChars =  title.length();
+                if (titleMaxChars < title.length()) titleMaxChars = title.length();
                 s = new SpannableString(title);
                 s.setSpan(new ForegroundColorSpan(ResourcesCompat.getColor(getResources(), R.color.devslopepos, null)), 0, s.length(), 0);
                 item.setTitle(s);
@@ -446,7 +445,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
             }
 
             // Fairly good guestimate for required divider text size...
-            title = new String(new char[titleMaxChars+10]).replace("\0", "_");
+            title = new String(new char[titleMaxChars + 10]).replace("\0", "_");
             dividerItem.setTitle(title);
 
             popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
@@ -590,6 +589,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
                     }
                 }
             });
+            SP.putBoolean(R.string.key_objectiveusereconnect, true);
             NSUpload.uploadOpenAPSOffline(0);
             return true;
         } else if (item.getTitle().equals(MainApp.gs(R.string.suspendloopfor1h))) {
@@ -618,6 +618,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
             return true;
         } else if (item.getTitle().equals(MainApp.gs(R.string.disconnectpumpfor1h))) {
             LoopPlugin.getPlugin().disconnectPump(60, profile);
+            SP.putBoolean(R.string.key_objectiveusedisconnect, true);
             updateGUI("suspendmenu");
             return true;
         } else if (item.getTitle().equals(MainApp.gs(R.string.disconnectpumpfor2h))) {
@@ -814,7 +815,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
         final String profileName = ProfileFunctions.getInstance().getProfileName();
         final PumpInterface pump = ConfigBuilderPlugin.getPlugin().getActivePump();
 
-        final QuickWizardEntry quickWizardEntry = OverviewPlugin.getPlugin().quickWizard.getActive();
+        final QuickWizardEntry quickWizardEntry = QuickWizard.INSTANCE.getActive();
         if (quickWizardEntry != null && actualBg != null && profile != null && pump != null) {
             quickWizardButton.setVisibility(View.VISIBLE);
             final BolusWizard wizard = quickWizardEntry.doCalc(profile, profileName, actualBg, true);
@@ -995,7 +996,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
             timeView.setText(DateUtil.timeString(new Date()));
         }
 
-        OverviewPlugin.getPlugin().notificationStore.updateNotifications(notificationsView);
+        OverviewPlugin.INSTANCE.getNotificationStore().updateNotifications(notificationsView);
 
         pumpStatusLayout.setVisibility(View.GONE);
         loopStatusLayout.setVisibility(View.GONE);
@@ -1017,8 +1018,8 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
         final String profileName = ProfileFunctions.getInstance().getProfileName();
 
         final String units = profile.getUnits();
-        final double lowLine = OverviewPlugin.getPlugin().determineLowLine(units);
-        final double highLine = OverviewPlugin.getPlugin().determineHighLine(units);
+        final double lowLine = OverviewPlugin.INSTANCE.determineLowLine(units);
+        final double highLine = OverviewPlugin.INSTANCE.determineHighLine(units);
 
         //Start with updating the BG as it is unaffected by loop.
         // **** BG value ****
@@ -1028,7 +1029,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
                 color = MainApp.gc(R.color.low);
             else if (GlucoseValueUtilsKt.valueToUnits(lastBG.getValue(), units) > highLine)
                 color = MainApp.gc(R.color.high);
-            bgView.setText(GlucoseValueUtilsKt.valueToUnitsToString(lastBG.getValue(), units));
+            bgView.setText(GlucoseValueUtilsKt.valueToUnitsString(lastBG.getValue(), units));
             arrowView.setText(GlucoseValueUtilsKt.toSymbol(lastBG.getTrendArrow()));
             bgView.setTextColor(color);
             arrowView.setTextColor(color);
@@ -1208,7 +1209,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
         }
 
         // QuickWizard button
-        QuickWizardEntry quickWizardEntry = OverviewPlugin.getPlugin().quickWizard.getActive();
+        QuickWizardEntry quickWizardEntry = QuickWizard.INSTANCE.getActive();
         if (quickWizardEntry != null && lastBG != null && pump.isInitialized() && !pump.isSuspended()) {
             quickWizardButton.setVisibility(View.VISIBLE);
             String text = quickWizardEntry.buttonText() + "\n" + DecimalFormatter.to0Decimal(quickWizardEntry.carbs()) + "g";
@@ -1310,55 +1311,19 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
             cobView.setText(cobText);
         }
 
-        if (statuslightsLayout != null) {
+        if (statuslightsLayout != null)
             if (SP.getBoolean(R.string.key_show_statuslights, false)) {
-                CareportalEvent careportalEvent;
-                NSSettingsStatus nsSettings = new NSSettingsStatus().getInstance();
-                double iageUrgent = nsSettings.getExtendedWarnValue("iage", "urgent", 96);
-                double iageWarn = nsSettings.getExtendedWarnValue("iage", "warn", 72);
-                double cageUrgent = nsSettings.getExtendedWarnValue("cage", "urgent", 72);
-                double cageWarn = nsSettings.getExtendedWarnValue("cage", "warn", 48);
-                double sageUrgent = nsSettings.getExtendedWarnValue("sage", "urgent", 166);
-                double sageWarn = nsSettings.getExtendedWarnValue("sage", "warn", 164);
-                //double pbageUrgent = nsSettings.getExtendedWarnValue("pgage", "urgent", 360);
-                //double pbageWarn = nsSettings.getExtendedWarnValue("pgage", "warn", 240);
-                double batUrgent = SP.getDouble(R.string.key_statuslights_bat_critical, 5.0);
-                double batWarn = SP.getDouble(R.string.key_statuslights_bat_warning, 25.0);
-                double resUrgent = SP.getDouble(R.string.key_statuslights_res_critical, 10.0);
-                double resWarn = SP.getDouble(R.string.key_statuslights_res_warning, 80.0);
-
-                if (cageView != null) {
-                    careportalEvent = MainApp.getDbHelper().getLastCareportalEvent(CareportalEvent.SITECHANGE);
-                    double canAge = careportalEvent != null ? careportalEvent.getHoursFromStart() : Double.MAX_VALUE;
-                    applyStatuslight(cageView, "CAN", canAge, cageWarn, cageUrgent, Double.MAX_VALUE, true);
+                StatuslightHandler handler = new StatuslightHandler();
+                if (SP.getBoolean(R.string.key_show_statuslights_extended, false)) {
+                    handler.extendedStatuslight(cageView, iageView, reservoirView, sageView, batteryView);
+                    statuslightsLayout.setVisibility(View.VISIBLE);
+                } else {
+                    handler.statuslight(cageView, iageView, reservoirView, sageView, batteryView);
+                    statuslightsLayout.setVisibility(View.VISIBLE);
                 }
-
-                if (iageView != null) {
-                    careportalEvent = MainApp.getDbHelper().getLastCareportalEvent(CareportalEvent.INSULINCHANGE);
-                    double insulinAge = careportalEvent != null ? careportalEvent.getHoursFromStart() : Double.MAX_VALUE;
-                    applyStatuslight(iageView, "INS", insulinAge, iageWarn, iageUrgent, Double.MAX_VALUE, true);
-                }
-
-                if (reservoirView != null) {
-                    double reservoirLevel = pump.isInitialized() ? pump.getReservoirLevel() : -1;
-                    applyStatuslight(reservoirView, "RES", reservoirLevel, resWarn, resUrgent, -1, false);
-                }
-
-                if (sageView != null) {
-                    careportalEvent = MainApp.getDbHelper().getLastCareportalEvent(CareportalEvent.SENSORCHANGE);
-                    double sensorAge = careportalEvent != null ? careportalEvent.getHoursFromStart() : Double.MAX_VALUE;
-                    applyStatuslight(sageView, "SEN", sensorAge, sageWarn, sageUrgent, Double.MAX_VALUE, true);
-                }
-
-                if (batteryView != null) {
-                    double batteryLevel = pump.isInitialized() ? pump.getBatteryLevel() : -1;
-                    applyStatuslight(batteryView, "BAT", batteryLevel, batWarn, batUrgent, -1, false);
-                }
-                statuslightsLayout.setVisibility(View.VISIBLE);
             } else {
                 statuslightsLayout.setVisibility(View.GONE);
             }
-        }
 
         boolean predictionsAvailable;
         if (Config.APS)
@@ -1455,12 +1420,12 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
             // set manual x bounds to have nice steps
             graphData.formatAxis(fromTime, endTime);
 
-            if(SP.getBoolean("showactivityprimary", true)) {
-                graphData.addActivity(fromTime, endTime, false,1d);
-            }
-
             // Treatments
             graphData.addTreatments(fromTime, endTime);
+
+            if (SP.getBoolean("showactivityprimary", true)) {
+                graphData.addActivity(fromTime, endTime, false, 0.8d);
+            }
 
             // add basal data
             if (pump.getPumpDescription().isTempBasalCapable && SP.getBoolean("showbasals", true)) {
@@ -1508,8 +1473,8 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
                 secondGraphData.addDeviations(fromTime, now, useDevForScale, 1d);
             if (SP.getBoolean("showratios", false))
                 secondGraphData.addRatio(fromTime, now, useRatioForScale, 1d);
-            if(SP.getBoolean("showactivitysecondary", true))
-                secondGraphData.addActivity(fromTime, endTime, useIAForScale,useIAForScale ? 2d: 1d);
+            if (SP.getBoolean("showactivitysecondary", true))
+                secondGraphData.addActivity(fromTime, endTime, useIAForScale, 0.8d);
             if (SP.getBoolean("showdevslope", false) && MainApp.devBranch)
                 secondGraphData.addDeviationSlope(fromTime, now, useDSForScale, 1d);
 
@@ -1545,21 +1510,5 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
             Profiler.log(log, from, updateGUIStart);
     }
 
-    public static void applyStatuslight(TextView view, String text, double value, double warnThreshold, double urgentThreshold, double invalid, boolean checkAscending) {
-        Function<Double, Boolean> check = checkAscending ? (Double threshold) -> value >= threshold : (Double threshold) -> value <= threshold;
-        if (value != invalid) {
-            view.setText(text);
-            if (check.apply(urgentThreshold)) {
-                view.setTextColor(MainApp.gc(R.color.ribbonCritical));
-            } else if (check.apply(warnThreshold)) {
-                view.setTextColor(MainApp.gc(R.color.ribbonWarning));
-            } else {
-                view.setTextColor(MainApp.gc(R.color.ribbonDefault));
-            }
-            view.setVisibility(View.VISIBLE);
-        } else {
-            view.setVisibility(View.GONE);
-        }
 
-    }
 }

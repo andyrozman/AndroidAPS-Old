@@ -9,7 +9,7 @@ class APSResultLinkDaoTest : AbstractDaoTest<APSResultLink>() {
     override fun getDao() = database.apsResultLinkDao
 
     override fun generateTestEntry() = APSResultLink(
-           apsResultID = 1
+           apsResultId = 1
     )
 
 }

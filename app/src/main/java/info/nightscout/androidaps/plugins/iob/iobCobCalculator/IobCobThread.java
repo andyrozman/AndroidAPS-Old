@@ -23,6 +23,7 @@ import info.nightscout.androidaps.events.Event;
 import info.nightscout.androidaps.interfaces.PluginType;
 import info.nightscout.androidaps.logging.L;
 import info.nightscout.androidaps.plugins.aps.openAPSSMB.SMBDefaults;
+import info.nightscout.androidaps.plugins.bus.RxBus;
 import info.nightscout.androidaps.plugins.configBuilder.ConfigBuilderPlugin;
 import info.nightscout.androidaps.plugins.configBuilder.ProfileFunctions;
 import info.nightscout.androidaps.plugins.general.overview.events.EventNewNotification;
@@ -199,7 +200,7 @@ public class IobCobThread extends Thread {
                                             log.debug(bucketed_data.toString());
                                             log.debug(IobCobCalculatorPlugin.getPlugin().getBgReadings().toString());
                                             Notification notification = new Notification(Notification.SENDLOGFILES, MainApp.gs(R.string.sendlogfiles), Notification.LOW);
-                                            MainApp.bus().post(new EventNewNotification(notification));
+                                            RxBus.INSTANCE.send(new EventNewNotification(notification));
                                             SP.putBoolean("log_AUTOSENS", true);
                                             break;
                                         }
@@ -225,7 +226,7 @@ public class IobCobThread extends Thread {
                                 log.debug(bucketed_data.toString());
                                 log.debug(IobCobCalculatorPlugin.getPlugin().getBgReadings().toString());
                                 Notification notification = new Notification(Notification.SENDLOGFILES, MainApp.gs(R.string.sendlogfiles), Notification.LOW);
-                                MainApp.bus().post(new EventNewNotification(notification));
+                                RxBus.INSTANCE.send(new EventNewNotification(notification));
                                 SP.putBoolean("log_AUTOSENS", true);
                                 break;
                             }
@@ -313,6 +314,7 @@ public class IobCobThread extends Thread {
             new Thread(() -> {
                 SystemClock.sleep(1000);
                 MainApp.bus().post(new EventAutosensCalculationFinished(cause));
+                RxBus.INSTANCE.send(new EventAutosensCalculationFinished(cause));
             }).start();
         } finally {
             if (mWakeLock != null)

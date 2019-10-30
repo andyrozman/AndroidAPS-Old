@@ -7,7 +7,7 @@ import info.nightscout.androidaps.database.entities.Carbs
 
 @Suppress("FunctionName")
 @Dao
-interface CarbsDao : BaseDao<Carbs> {
+internal interface CarbsDao : BaseDao<Carbs> {
 
     @Query("SELECT * FROM $TABLE_CARBS WHERE id = :id")
     override fun findById(id: Long): Carbs?
@@ -15,6 +15,6 @@ interface CarbsDao : BaseDao<Carbs> {
     @Query("DELETE FROM $TABLE_CARBS")
     override fun deleteAllEntries()
 
-    @Query("SELECT * FROM $TABLE_CARBS WHERE timestamp >= :start AND timestamp <= :end AND referenceId IS NULL AND valid = 1 ORDER BY timestamp ASC")
+    @Query("SELECT * FROM $TABLE_CARBS WHERE timestamp >= :start AND timestamp <= :end AND referenceId IS NULL AND isValid = 1 ORDER BY timestamp ASC")
     fun getCarbsInTimeRange(start: Long, end: Long): List<Carbs>
 }

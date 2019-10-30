@@ -66,7 +66,7 @@ abstract class AbstractDaoTest<T : DBEntry> : AbstractDatabaseTest() {
         Assert.assertEquals("Wrong ID in entry", 1, entry.id)
         val queried = getDao().findById(insertGeneratedId)
         Assert.assertEquals("Did not get the same entry back from the database", queried, entry)
-        Assert.assertNotEquals("lastModified not updated", 0, entry.lastModified)
+        Assert.assertNotEquals("dateCreated not updated", 0, entry.dateCreated)
         val beforeUpdate = copy(entry)
         val generatedId = getDao().updateExistingEntry(entry)
         Assert.assertEquals("Version number wrong after update", 1, entry.version)

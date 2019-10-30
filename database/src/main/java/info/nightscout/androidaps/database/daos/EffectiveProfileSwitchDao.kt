@@ -7,7 +7,7 @@ import info.nightscout.androidaps.database.entities.EffectiveProfileSwitch
 
 @Suppress("FunctionName")
 @Dao
-interface EffectiveProfileSwitchDao : BaseDao<EffectiveProfileSwitch> {
+internal interface EffectiveProfileSwitchDao : BaseDao<EffectiveProfileSwitch> {
 
     @Query("SELECT * FROM $TABLE_EFFECTIVE_PROFILE_SWITCHES WHERE id = :id")
     override fun findById(id: Long): EffectiveProfileSwitch?

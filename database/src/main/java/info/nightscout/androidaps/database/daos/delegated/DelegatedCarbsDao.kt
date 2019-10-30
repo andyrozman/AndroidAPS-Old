@@ -4,15 +4,15 @@ import info.nightscout.androidaps.database.daos.CarbsDao
 import info.nightscout.androidaps.database.entities.Carbs
 import info.nightscout.androidaps.database.interfaces.DBEntry
 
-class DelegatedCarbsDao(changes: MutableList<DBEntry>, dao: CarbsDao) : DelegatedDao(changes), CarbsDao by dao {
+internal class DelegatedCarbsDao(changes: MutableList<DBEntry>, private val dao: CarbsDao) : DelegatedDao(changes), CarbsDao by dao {
 
     override fun insertNewEntry(entry: Carbs): Long {
         changes.add(entry)
-        return super.insertNewEntry(entry)
+        return dao.insertNewEntry(entry)
     }
 
     override fun updateExistingEntry(entry: Carbs): Long {
         changes.add(entry)
-        return super.updateExistingEntry(entry)
+        return dao.updateExistingEntry(entry)
     }
 }

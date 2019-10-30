@@ -2,8 +2,6 @@ package info.nightscout.androidaps.plugins.pump.medtronic.dialog;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.SystemClock;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -34,10 +32,6 @@ public class MedtronicHistoryActivity extends NoSplashActivity {
 
     private static Logger LOG = LoggerFactory.getLogger(L.PUMP);
 
-    private Handler mHandler;
-
-    // static Profile profile = null;
-
     Spinner historyTypeSpinner;
     TextView statusView;
     RecyclerView recyclerView;
@@ -55,10 +49,6 @@ public class MedtronicHistoryActivity extends NoSplashActivity {
 
     public MedtronicHistoryActivity() {
         super();
-        HandlerThread mHandlerThread = new HandlerThread(MedtronicHistoryActivity.class.getSimpleName());
-        mHandlerThread.start();
-        filterHistory(PumpHistoryEntryGroup.All);
-        this.mHandler = new Handler(mHandlerThread.getLooper());
     }
 
 

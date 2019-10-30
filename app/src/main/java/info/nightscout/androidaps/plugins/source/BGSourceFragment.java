@@ -110,9 +110,9 @@ public class BGSourceFragment extends SubscriberFragment {
         public void onBindViewHolder(@NonNull BgReadingsViewHolder holder, int position) {
             GlucoseValue bgReading = bgReadings.get(position);
             holder.ns.setVisibility(NSUpload.isIdValid(bgReading.getInterfaceIDs().getNightscoutId()) ? View.VISIBLE : View.GONE);
-            holder.invalid.setVisibility(!bgReading.getValid() ? View.VISIBLE : View.GONE);
+            holder.invalid.setVisibility(!bgReading.isValid() ? View.VISIBLE : View.GONE);
             holder.date.setText(DateUtil.dateAndTimeString(bgReading.getTimestamp()));
-            holder.value.setText(GlucoseValueUtilsKt.valueToUnitsToString(bgReading.getValue(), units));
+            holder.value.setText(GlucoseValueUtilsKt.valueToUnitsString(bgReading.getValue(), units));
             holder.direction.setText(GlucoseValueUtilsKt.toSymbol(bgReading.getTrendArrow()));
             holder.remove.setTag(bgReading);
         }
@@ -150,7 +150,7 @@ public class BGSourceFragment extends SubscriberFragment {
                     case R.id.bgsource_remove:
                         AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
                         builder.setTitle(MainApp.gs(R.string.confirmation));
-                        builder.setMessage(MainApp.gs(R.string.removerecord) + "\n" + DateUtil.dateAndTimeString(bgReading.getTimestamp()) + "\n" + GlucoseValueUtilsKt.valueToUnitsToString(bgReading.getValue(), units));
+                        builder.setMessage(MainApp.gs(R.string.removerecord) + "\n" + DateUtil.dateAndTimeString(bgReading.getTimestamp()) + "\n" + GlucoseValueUtilsKt.valueToUnitsString(bgReading.getValue(), units));
                         builder.setPositiveButton(MainApp.gs(R.string.ok), new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int id) {
 /*                                final String _id = bgReading._id;

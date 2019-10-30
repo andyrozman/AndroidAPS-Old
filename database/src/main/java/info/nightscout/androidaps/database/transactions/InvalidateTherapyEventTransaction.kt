@@ -1,13 +1,14 @@
 package info.nightscout.androidaps.database.transactions
 
-import info.nightscout.androidaps.database.AppRepository
-
+/**
+ * Invalidates the TherapyEvent with the specified id
+ */
 class InvalidateTherapyEventTransaction(val id: Long) : Transaction<Unit>() {
 
     override fun run() {
         val therapyEvent = database.therapyEventDao.findById(id)
                 ?: throw IllegalArgumentException("There is no such TherapyEvent with the specified ID.")
-        therapyEvent.valid = false
+        therapyEvent.isValid = false
         database.therapyEventDao.updateExistingEntry(therapyEvent)
     }
 }

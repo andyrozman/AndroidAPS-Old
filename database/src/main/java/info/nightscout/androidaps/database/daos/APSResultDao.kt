@@ -7,7 +7,7 @@ import info.nightscout.androidaps.database.entities.APSResult
 
 @Suppress("FunctionName")
 @Dao
-interface APSResultDao : BaseDao<APSResult> {
+internal interface APSResultDao : BaseDao<APSResult> {
 
     @Query("SELECT * FROM $TABLE_APS_RESULTS WHERE id = :id")
     override fun findById(id: Long): APSResult?

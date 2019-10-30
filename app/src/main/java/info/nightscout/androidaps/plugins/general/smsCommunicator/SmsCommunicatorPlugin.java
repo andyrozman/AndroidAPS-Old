@@ -1,7 +1,6 @@
 package info.nightscout.androidaps.plugins.general.smsCommunicator;
 
 import android.content.Intent;
-import android.content.pm.ResolveInfo;
 import android.os.Bundle;
 import android.telephony.SmsManager;
 import android.telephony.SmsMessage;
@@ -36,9 +35,11 @@ import info.nightscout.androidaps.interfaces.ProfileInterface;
 import info.nightscout.androidaps.interfaces.PumpInterface;
 import info.nightscout.androidaps.logging.L;
 import info.nightscout.androidaps.plugins.aps.loop.LoopPlugin;
+import info.nightscout.androidaps.plugins.bus.RxBus;
 import info.nightscout.androidaps.plugins.configBuilder.ConfigBuilderPlugin;
 import info.nightscout.androidaps.plugins.configBuilder.ProfileFunctions;
 import info.nightscout.androidaps.plugins.general.nsclient.NSUpload;
+import info.nightscout.androidaps.plugins.general.nsclient.events.EventNSClientRestart;
 import info.nightscout.androidaps.plugins.general.overview.events.EventNewNotification;
 import info.nightscout.androidaps.plugins.general.overview.notifications.Notification;
 import info.nightscout.androidaps.plugins.general.smsCommunicator.events.EventSmsCommunicatorUpdateGui;
@@ -47,7 +48,6 @@ import info.nightscout.androidaps.plugins.iob.iobCobCalculator.GlucoseStatus;
 import info.nightscout.androidaps.plugins.iob.iobCobCalculator.IobCobCalculatorPlugin;
 import info.nightscout.androidaps.plugins.treatments.TreatmentsPlugin;
 import info.nightscout.androidaps.queue.Callback;
-import info.nightscout.androidaps.services.Intents;
 import info.nightscout.androidaps.utils.DateUtil;
 import info.nightscout.androidaps.utils.DecimalFormatter;
 import info.nightscout.androidaps.utils.GlucoseValueUtilsKt;
@@ -100,6 +100,7 @@ public class SmsCommunicatorPlugin extends PluginBase {
     @Override
     protected void onStop() {
         MainApp.bus().unregister(this);
+        super.onStop();
     }
 
     @Subscribe
@@ -107,9 +108,8 @@ public class SmsCommunicatorPlugin extends PluginBase {
         if (ev == null || ev.isChanged(R.string.key_smscommunicator_allowednumbers)) {
             String settings = SP.getString(R.string.key_smscommunicator_allowednumbers, "");
 
-            String pattern = ";";
-
-            String[] substrings = settings.split(pattern);
+            allowedNumbers.clear();
+            String[] substrings = settings.split(";");
             for (String number : substrings) {
                 String cleaned = number.replaceAll("\\s+", "");
                 allowedNumbers.add(cleaned);
@@ -272,11 +272,11 @@ public class SmsCommunicatorPlugin extends PluginBase {
         String units = ProfileFunctions.getInstance().getProfileUnits();
 
         if (actualBG != null) {
-            reply = MainApp.gs(R.string.sms_actualbg) + " " + GlucoseValueUtilsKt.valueToUnitsToString(actualBG.getValue(), units) + ", ";
+            reply = MainApp.gs(R.string.sms_actualbg) + " " + GlucoseValueUtilsKt.valueToUnitsString(actualBG.getValue(), units) + ", ";
         } else if (lastBG != null) {
             Long agoMsec = System.currentTimeMillis() - lastBG.getTimestamp();
             int agoMin = (int) (agoMsec / 60d / 1000d);
-            reply = MainApp.gs(R.string.sms_lastbg) + " " + GlucoseValueUtilsKt.valueToUnitsToString(lastBG.getValue(), units) + " " + String.format(MainApp.gs(R.string.sms_minago), agoMin) + ", ";
+            reply = MainApp.gs(R.string.sms_lastbg) + " " + GlucoseValueUtilsKt.valueToUnitsString(lastBG.getValue(), units) + " " + String.format(MainApp.gs(R.string.sms_minago), agoMin) + ", ";
         }
         GlucoseStatus glucoseStatus = GlucoseStatus.getGlucoseStatusData();
         if (glucoseStatus != null)
@@ -401,12 +401,9 @@ public class SmsCommunicatorPlugin extends PluginBase {
 
     private void processTREATMENTS(String[] splitted, Sms receivedSms) {
         if (splitted[1].toUpperCase().equals("REFRESH")) {
-            Intent restartNSClient = new Intent(Intents.ACTION_RESTART);
             TreatmentsPlugin.getPlugin().getService().resetTreatments();
-            MainApp.instance().getApplicationContext().sendBroadcast(restartNSClient);
-            List<ResolveInfo> q = MainApp.instance().getApplicationContext().getPackageManager().queryBroadcastReceivers(restartNSClient, 0);
-            String reply = "TREATMENTS REFRESH " + q.size() + " receivers";
-            sendSMS(new Sms(receivedSms.phoneNumber, reply));
+            MainApp.bus().post(new EventNSClientRestart());
+            sendSMS(new Sms(receivedSms.phoneNumber, "TREATMENTS REFRESH SENT"));
             receivedSms.processed = true;
         } else
             sendSMS(new Sms(receivedSms.phoneNumber, R.string.wrongformat));
@@ -414,11 +411,8 @@ public class SmsCommunicatorPlugin extends PluginBase {
 
     private void processNSCLIENT(String[] splitted, Sms receivedSms) {
         if (splitted[1].toUpperCase().equals("RESTART")) {
-            Intent restartNSClient = new Intent(Intents.ACTION_RESTART);
-            MainApp.instance().getApplicationContext().sendBroadcast(restartNSClient);
-            List<ResolveInfo> q = MainApp.instance().getApplicationContext().getPackageManager().queryBroadcastReceivers(restartNSClient, 0);
-            String reply = "NSCLIENT RESTART " + q.size() + " receivers";
-            sendSMS(new Sms(receivedSms.phoneNumber, reply));
+            MainApp.bus().post(new EventNSClientRestart());
+            sendSMS(new Sms(receivedSms.phoneNumber, "NSCLIENT RESTART SENT"));
             receivedSms.processed = true;
         } else
             sendSMS(new Sms(receivedSms.phoneNumber, R.string.wrongformat));
@@ -744,11 +738,13 @@ public class SmsCommunicatorPlugin extends PluginBase {
             sendSMS(new Sms(receivedSms.phoneNumber, R.string.wrongformat));
     }
 
-    public void sendNotificationToAllNumbers(String text) {
+    public boolean sendNotificationToAllNumbers(String text) {
+        boolean result = true;
         for (int i = 0; i < allowedNumbers.size(); i++) {
             Sms sms = new Sms(allowedNumbers.get(i), text);
-            sendSMS(sms);
+            result = result && sendSMS(sms);
         }
+        return result;
     }
 
     private void sendSMSToAllNumbers(Sms sms) {
@@ -758,7 +754,7 @@ public class SmsCommunicatorPlugin extends PluginBase {
         }
     }
 
-    void sendSMS(Sms sms) {
+    boolean sendSMS(Sms sms) {
         SmsManager smsManager = SmsManager.getDefault();
         sms.text = stripAccents(sms.text);
 
@@ -775,13 +771,22 @@ public class SmsCommunicatorPlugin extends PluginBase {
 
             messages.add(sms);
         } catch (IllegalArgumentException e) {
-            Notification notification = new Notification(Notification.INVALID_PHONE_NUMBER, MainApp.gs(R.string.smscommunicator_invalidphonennumber), Notification.NORMAL);
-            MainApp.bus().post(new EventNewNotification(notification));
+            if (e.getMessage().equals("Invalid message body")) {
+                Notification notification = new Notification(Notification.INVALID_MESSAGE_BODY, MainApp.gs(R.string.smscommunicator_messagebody), Notification.NORMAL);
+                RxBus.INSTANCE.send(new EventNewNotification(notification));
+                return false;
+            } else {
+                Notification notification = new Notification(Notification.INVALID_PHONE_NUMBER, MainApp.gs(R.string.smscommunicator_invalidphonennumber), Notification.NORMAL);
+                RxBus.INSTANCE.send(new EventNewNotification(notification));
+                return false;
+            }
         } catch (java.lang.SecurityException e) {
             Notification notification = new Notification(Notification.MISSING_SMS_PERMISSION, MainApp.gs(R.string.smscommunicator_missingsmspermission), Notification.NORMAL);
-            MainApp.bus().post(new EventNewNotification(notification));
+            RxBus.INSTANCE.send(new EventNewNotification(notification));
+            return false;
         }
         MainApp.bus().post(new EventSmsCommunicatorUpdateGui());
+        return true;
     }
 
     private String generatePasscode() {

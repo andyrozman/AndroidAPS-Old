@@ -15,7 +15,7 @@ import info.nightscout.androidaps.interfaces.Interval;
  * Created by mike on 09.05.2017.
  */
 
-// Zero duration means profile is valid until is chaged
+// Zero duration means profile is isValid until is chaged
 // When no interval match the lastest record without duration is used
 
 public class ProfileIntervals<T extends Interval> {

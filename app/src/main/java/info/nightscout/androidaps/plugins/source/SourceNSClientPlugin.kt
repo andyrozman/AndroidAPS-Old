@@ -3,13 +3,12 @@ package info.nightscout.androidaps.plugins.source
 import android.content.Intent
 import info.nightscout.androidaps.R
 import info.nightscout.androidaps.database.BlockingAppRepository
-import info.nightscout.androidaps.database.transactions.GlucoseValuesTransaction
+import info.nightscout.androidaps.database.transactions.CgmSourceTransaction
 import info.nightscout.androidaps.interfaces.BgSourceInterface
 import info.nightscout.androidaps.interfaces.PluginBase
 import info.nightscout.androidaps.interfaces.PluginDescription
 import info.nightscout.androidaps.interfaces.PluginType
 import info.nightscout.androidaps.logging.L
-import info.nightscout.androidaps.plugins.constraints.objectives.ObjectivesPlugin
 import info.nightscout.androidaps.plugins.general.nsclient.data.NSSgv
 import info.nightscout.androidaps.utils.JsonHelper
 import info.nightscout.androidaps.utils.SP
@@ -45,7 +44,7 @@ object SourceNSClientPlugin : PluginBase(PluginDescription()
         val bundles = intent.extras
 
         try {
-            val glucoseValues = mutableListOf<GlucoseValuesTransaction.GlucoseValue>()
+            val glucoseValues = mutableListOf<CgmSourceTransaction.GlucoseValue>()
             if (bundles!!.containsKey("sgv")) {
                 val sgvstring = bundles.getString("sgv")
                 if (L.isEnabled(L.BGSOURCE))
@@ -65,22 +64,20 @@ object SourceNSClientPlugin : PluginBase(PluginDescription()
                     glucoseValues.add(createGlucoseValue(sgvJson))
                 }
             }
-            BlockingAppRepository.runTransaction(GlucoseValuesTransaction(glucoseValues, listOf(), null))
+            BlockingAppRepository.runTransaction(CgmSourceTransaction(glucoseValues, listOf(), null))
         } catch (e: Exception) {
             log.error("Unhandled exception", e)
         }
 
-        // Objectives 0
-        ObjectivesPlugin.getPlugin().bgIsAvailableInNS = true
-        ObjectivesPlugin.getPlugin().saveProgress()
+        SP.putBoolean(R.string.key_ObjectivesbgIsAvailableInNS, true);
     }
 
-    private fun createGlucoseValue(sgvJson: JSONObject): GlucoseValuesTransaction.GlucoseValue {
+    private fun createGlucoseValue(sgvJson: JSONObject): CgmSourceTransaction.GlucoseValue {
         val nsSgv = NSSgv(sgvJson)
 
         val source = JsonHelper.safeGetString(sgvJson, "device", "none")
         detectSource(source, JsonHelper.safeGetLong(sgvJson, "mills"))
-        return GlucoseValuesTransaction.GlucoseValue(
+        return CgmSourceTransaction.GlucoseValue(
                 timestamp = nsSgv.mills,
                 value = nsSgv.mgdl.toDouble(),
                 raw = null,

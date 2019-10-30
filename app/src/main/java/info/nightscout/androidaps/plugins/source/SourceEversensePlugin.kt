@@ -4,7 +4,7 @@ import android.content.Intent
 import info.nightscout.androidaps.R
 import info.nightscout.androidaps.database.BlockingAppRepository
 import info.nightscout.androidaps.database.entities.GlucoseValue
-import info.nightscout.androidaps.database.transactions.GlucoseValuesTransaction
+import info.nightscout.androidaps.database.transactions.CgmSourceTransaction
 import info.nightscout.androidaps.interfaces.BgSourceInterface
 import info.nightscout.androidaps.interfaces.PluginBase
 import info.nightscout.androidaps.interfaces.PluginDescription
@@ -74,7 +74,7 @@ object SourceEversensePlugin : PluginBase(PluginDescription()
                 log.debug("transmitterConnectionState: " + bundle.getString("transmitterConnectionState")!!)
         }
 
-        val glucoseValues = mutableListOf<GlucoseValuesTransaction.GlucoseValue>()
+        val glucoseValues = mutableListOf<CgmSourceTransaction.GlucoseValue>()
 
         if (bundle.containsKey("glucoseLevels")) {
             val glucoseLevels = bundle.getIntArray("glucoseLevels")
@@ -88,7 +88,7 @@ object SourceEversensePlugin : PluginBase(PluginDescription()
             }
 
             for (i in glucoseLevels!!.indices) {
-                glucoseValues.add(GlucoseValuesTransaction.GlucoseValue(
+                glucoseValues.add(CgmSourceTransaction.GlucoseValue(
                         timestamp = glucoseTimestamps[i],
                         value = glucoseLevels[i].toDouble(),
                         noise = null,
@@ -99,7 +99,7 @@ object SourceEversensePlugin : PluginBase(PluginDescription()
             }
         }
 
-        val calibrations = mutableListOf<GlucoseValuesTransaction.Calibration>()
+        val calibrations = mutableListOf<CgmSourceTransaction.Calibration>()
 
         if (bundle.containsKey("calibrationGlucoseLevels")) {
             val calibrationGlucoseLevels = bundle.getIntArray("calibrationGlucoseLevels")
@@ -113,7 +113,7 @@ object SourceEversensePlugin : PluginBase(PluginDescription()
             }
 
             for (i in calibrationGlucoseLevels!!.indices) {
-                calibrations.add(GlucoseValuesTransaction.Calibration(
+                calibrations.add(CgmSourceTransaction.Calibration(
                         calibrationTimestamps!![i],
                         calibrationGlucoseLevels[i].toDouble()
                 ))
@@ -126,7 +126,7 @@ object SourceEversensePlugin : PluginBase(PluginDescription()
             null
         }
 
-        BlockingAppRepository.runTransactionForResult(GlucoseValuesTransaction(glucoseValues, calibrations, sensorInsertionTime)).forEach {
+        BlockingAppRepository.runTransactionForResult(CgmSourceTransaction(glucoseValues, calibrations, sensorInsertionTime)).forEach {
             if (SP.getBoolean(R.string.key_dexcomg5_nsupload, false)) {
                 NSUpload.uploadBg(it, "AndroidAPS-Eversense")
             }

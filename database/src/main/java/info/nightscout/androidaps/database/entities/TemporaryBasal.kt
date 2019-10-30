@@ -16,15 +16,15 @@ data class TemporaryBasal(
         @PrimaryKey(autoGenerate = true)
         override var id: Long = 0,
         override var version: Int = 0,
-        override var lastModified: Long = -1,
-        override var valid: Boolean = true,
+        override var dateCreated: Long = -1,
+        override var isValid: Boolean = true,
         override var referenceId: Long? = null,
         @Embedded
         override var interfaceIDs_backing: InterfaceIDs? = InterfaceIDs(),
         override var timestamp: Long,
         override var utcOffset: Long,
         var type: Type,
-        var absolute: Boolean,
+        var isAbsolute: Boolean,
         var rate: Double,
         override var duration: Long
 ) : DBEntry, DBEntryWithTimeAndDuration {

@@ -4,15 +4,15 @@ import info.nightscout.androidaps.database.daos.APSResultLinkDao
 import info.nightscout.androidaps.database.entities.links.APSResultLink
 import info.nightscout.androidaps.database.interfaces.DBEntry
 
-class DelegatedAPSResultLinkLinkDao(changes: MutableList<DBEntry>, dao: APSResultLinkDao) : DelegatedDao(changes), APSResultLinkDao by dao {
+internal class DelegatedAPSResultLinkLinkDao(changes: MutableList<DBEntry>, private val dao: APSResultLinkDao) : DelegatedDao(changes), APSResultLinkDao by dao {
 
     override fun insertNewEntry(entry: APSResultLink): Long {
         changes.add(entry)
-        return super.insertNewEntry(entry)
+        return dao.insertNewEntry(entry)
     }
 
     override fun updateExistingEntry(entry: APSResultLink): Long {
         changes.add(entry)
-        return super.updateExistingEntry(entry)
+        return dao.updateExistingEntry(entry)
     }
 }

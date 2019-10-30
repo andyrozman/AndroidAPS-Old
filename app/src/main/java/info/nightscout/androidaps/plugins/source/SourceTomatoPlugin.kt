@@ -4,7 +4,7 @@ import android.content.Intent
 import info.nightscout.androidaps.R
 import info.nightscout.androidaps.database.BlockingAppRepository
 import info.nightscout.androidaps.database.entities.GlucoseValue
-import info.nightscout.androidaps.database.transactions.GlucoseValuesTransaction
+import info.nightscout.androidaps.database.transactions.CgmSourceTransaction
 import info.nightscout.androidaps.interfaces.BgSourceInterface
 import info.nightscout.androidaps.interfaces.PluginBase
 import info.nightscout.androidaps.interfaces.PluginDescription
@@ -39,7 +39,7 @@ object SourceTomatoPlugin : PluginBase(PluginDescription()
 
         if (L.isEnabled(L.BGSOURCE))
             log.debug("Received Tomato Data")
-        BlockingAppRepository.runTransactionForResult(GlucoseValuesTransaction(listOf(GlucoseValuesTransaction.GlucoseValue(
+        BlockingAppRepository.runTransactionForResult(CgmSourceTransaction(listOf(CgmSourceTransaction.GlucoseValue(
                 timestamp = bundle.getLong("com.fangies.tomatofn.Extras.Time"),
                 value = bundle.getDouble("com.fangies.tomatofn.Extras.BgEstimate"),
                 trendArrow = GlucoseValue.TrendArrow.NONE,

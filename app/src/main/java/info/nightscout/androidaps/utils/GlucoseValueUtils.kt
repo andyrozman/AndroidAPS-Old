@@ -38,14 +38,14 @@ fun String.toTrendArrow() = when (this) {
     else -> GlucoseValue.TrendArrow.NONE
 }
 
-fun valueToUnits(value: Double, units: String): Double? {
+fun valueToUnits(value: Double, units: String): Double {
     return if (units == Constants.MGDL)
         value
     else
         value * Constants.MGDL_TO_MMOLL
 }
 
-fun valueToUnitsToString(value: Double, units: String): String {
+fun valueToUnitsString(value: Double, units: String): String {
     return if (units == Constants.MGDL)
         DecimalFormatter.to0Decimal(value)
     else

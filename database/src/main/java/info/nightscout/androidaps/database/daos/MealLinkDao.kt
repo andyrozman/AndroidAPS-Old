@@ -7,7 +7,7 @@ import info.nightscout.androidaps.database.entities.links.MealLink
 
 @Suppress("FunctionName")
 @Dao
-interface MealLinkDao : BaseDao<MealLink> {
+internal interface MealLinkDao : BaseDao<MealLink> {
 
     @Query("SELECT * FROM $TABLE_MEAL_LINKS WHERE id = :id")
     override fun findById(id: Long): MealLink?

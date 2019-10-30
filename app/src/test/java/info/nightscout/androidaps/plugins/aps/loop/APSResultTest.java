@@ -91,7 +91,7 @@ public class APSResultTest {
         apsResult.tempBasalRequested(true).percent(120).duration(30);
         Assert.assertEquals(true , apsResult.isChangeRequested());
 
-        // it should work with absolute temps too
+        // it should work with isAbsolute temps too
         // request different temp
         when(treatmentsPlugin.getTempBasalFromHistory(anyLong())).thenReturn(new TemporaryBasal().absolute(1).duration(30));
         apsResult.tempBasalRequested(true).percent(100).duration(30);

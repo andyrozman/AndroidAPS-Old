@@ -5,7 +5,7 @@ import info.nightscout.androidaps.Constants
 import info.nightscout.androidaps.R
 import info.nightscout.androidaps.database.BlockingAppRepository
 import info.nightscout.androidaps.database.entities.GlucoseValue
-import info.nightscout.androidaps.database.transactions.GlucoseValuesTransaction
+import info.nightscout.androidaps.database.transactions.CgmSourceTransaction
 import info.nightscout.androidaps.interfaces.BgSourceInterface
 import info.nightscout.androidaps.interfaces.PluginBase
 import info.nightscout.androidaps.interfaces.PluginDescription
@@ -49,10 +49,10 @@ object SourcePoctechPlugin : PluginBase(PluginDescription()
             val jsonArray = JSONArray(data)
             if (L.isEnabled(L.BGSOURCE))
                 log.debug("Received Poctech Data size:" + jsonArray.length())
-            val glucoseValues = mutableListOf<GlucoseValuesTransaction.GlucoseValue>()
+            val glucoseValues = mutableListOf<CgmSourceTransaction.GlucoseValue>()
             for (i in 0 until jsonArray.length()) {
                 val json = jsonArray.getJSONObject(i)
-                glucoseValues.add(GlucoseValuesTransaction.GlucoseValue(
+                glucoseValues.add(CgmSourceTransaction.GlucoseValue(
                         timestamp = json.getLong("date"),
                         value = json.getDouble("current").let {
                             if (JsonHelper.safeGetString(json, "units", Constants.MGDL) == "mmol/L")
@@ -65,7 +65,7 @@ object SourcePoctechPlugin : PluginBase(PluginDescription()
                         sourceSensor = GlucoseValue.SourceSensor.POCTECH_NATIVE
                 ))
             }
-            BlockingAppRepository.runTransactionForResult(GlucoseValuesTransaction(glucoseValues, listOf(), null)).forEach {
+            BlockingAppRepository.runTransactionForResult(CgmSourceTransaction(glucoseValues, listOf(), null)).forEach {
                 if (SP.getBoolean(R.string.key_dexcomg5_nsupload, false)) {
                     NSUpload.uploadBg(it, "AndroidAPS-Poctech")
                 }

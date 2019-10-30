@@ -5,8 +5,8 @@ import info.nightscout.androidaps.database.embedments.InterfaceIDs
 interface DBEntry {
     var id: Long
     var version: Int
-    var lastModified: Long
-    var valid: Boolean
+    var dateCreated: Long
+    var isValid: Boolean
     var referenceId: Long?
     var interfaceIDs_backing: InterfaceIDs?
 

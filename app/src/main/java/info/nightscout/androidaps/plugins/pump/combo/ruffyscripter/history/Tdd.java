@@ -2,7 +2,7 @@ package info.nightscout.androidaps.plugins.pump.combo.ruffyscripter.history;
 
 import java.util.Date;
 
-/** Total daily dosage; amount of insulin delivered over a full day. */
+/** Total daily dose; amount of insulin delivered over a full day. */
 public class Tdd extends HistoryRecord {
     public final double total;
 

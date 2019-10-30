@@ -4,7 +4,7 @@ import android.content.Intent
 import info.nightscout.androidaps.R
 import info.nightscout.androidaps.database.BlockingAppRepository
 import info.nightscout.androidaps.database.entities.GlucoseValue
-import info.nightscout.androidaps.database.transactions.GlucoseValuesTransaction
+import info.nightscout.androidaps.database.transactions.CgmSourceTransaction
 import info.nightscout.androidaps.interfaces.BgSourceInterface
 import info.nightscout.androidaps.interfaces.PluginBase
 import info.nightscout.androidaps.interfaces.PluginDescription
@@ -43,7 +43,7 @@ object SourceMM640gPlugin : PluginBase(PluginDescription()
             if (L.isEnabled(L.BGSOURCE))
                 log.debug("Received MM640g Data: ", data)
 
-            val glucoseValues = mutableListOf<GlucoseValuesTransaction.GlucoseValue>()
+            val glucoseValues = mutableListOf<CgmSourceTransaction.GlucoseValue>()
             if (data != null && data.isNotEmpty()) {
                 try {
                     val jsonArray = JSONArray(data)
@@ -51,7 +51,7 @@ object SourceMM640gPlugin : PluginBase(PluginDescription()
                         val jsonObject = jsonArray.getJSONObject(i)
                         val type = jsonObject.getString("type")
                         if (type == "sgv") {
-                            glucoseValues.add(GlucoseValuesTransaction.GlucoseValue(
+                            glucoseValues.add(CgmSourceTransaction.GlucoseValue(
                                     timestamp = jsonObject.getLong("date"),
                                     value = jsonObject.getDouble("sgv"),
                                     raw = null,
@@ -69,7 +69,7 @@ object SourceMM640gPlugin : PluginBase(PluginDescription()
                     log.error("Exception: ", e)
                 }
             }
-            BlockingAppRepository.runTransaction(GlucoseValuesTransaction(glucoseValues, listOf(), null))
+            BlockingAppRepository.runTransaction(CgmSourceTransaction(glucoseValues, listOf(), null))
         }
     }
 }

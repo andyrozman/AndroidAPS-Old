@@ -9,7 +9,7 @@ import io.reactivex.Flowable
 
 @Suppress("FunctionName")
 @Dao
-interface ExtendedBolusDao : BaseDao<ExtendedBolus> {
+internal interface ExtendedBolusDao : BaseDao<ExtendedBolus> {
 
     @Query("SELECT * FROM $TABLE_EXTENDED_BOLUSES WHERE id = :id")
     override fun findById(id: Long): ExtendedBolus?
@@ -26,9 +26,9 @@ interface ExtendedBolusDao : BaseDao<ExtendedBolus> {
     @Query("SELECT * FROM $TABLE_EXTENDED_BOLUSES WHERE pumpType = :pumpType AND pumpSerial = :pumpSerial AND pumpId = :pumpId AND referenceId IS NULL ORDER BY timestamp DESC LIMIT 1")
     fun findByPumpId(pumpType: InterfaceIDs.PumpType, pumpSerial: String, pumpId: Long?): ExtendedBolus?
 
-    @Query("SELECT * FROM $TABLE_EXTENDED_BOLUSES WHERE timestamp >= :start AND timestamp <= :end AND referenceId IS NULL AND valid = 1 ORDER BY timestamp ASC")
+    @Query("SELECT * FROM $TABLE_EXTENDED_BOLUSES WHERE timestamp >= :start AND timestamp <= :end AND referenceId IS NULL AND isValid = 1 ORDER BY timestamp ASC")
     fun getExtendedBolusesInTimeRange(start: Long, end: Long): Flowable<List<ExtendedBolus>>
 
-    @Query("SELECT * FROM $TABLE_EXTENDED_BOLUSES WHERE timestamp <= :timestamp AND (timestamp + duration) > :timestamp AND referenceId IS NULL AND valid = 1 ORDER BY timestamp DESC LIMIT 1")
+    @Query("SELECT * FROM $TABLE_EXTENDED_BOLUSES WHERE timestamp <= :timestamp AND (timestamp + duration) > :timestamp AND referenceId IS NULL AND isValid = 1 ORDER BY timestamp DESC LIMIT 1")
     fun getExtendedBolusActiveAt(timestamp: Long): ExtendedBolus?
 }

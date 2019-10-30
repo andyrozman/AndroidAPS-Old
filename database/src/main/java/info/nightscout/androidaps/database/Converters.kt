@@ -88,6 +88,28 @@ class Converters {
     }
 
     @TypeConverter
+    fun anyToString(value: Any?) = when (value) {
+        null -> null
+        is String -> "S$value"
+        is Int -> "I$value"
+        is Long -> "L$value"
+        is Boolean -> "B$value"
+        is Float -> "F$value"
+        else -> throw IllegalArgumentException("Type not supported")
+    }
+
+    @TypeConverter
+    fun stringToAny(value: String?): Any? = when {
+        value == null -> null
+        value.startsWith("S") -> value.substring(1)
+        value.startsWith("I") -> value.substring(1).toInt()
+        value.startsWith("L") -> value.substring(1).toLong()
+        value.startsWith("B") -> value.substring(1).toBoolean()
+        value.startsWith("F") -> value.substring(1).toFloat()
+        else -> throw IllegalArgumentException("Type not supported")
+    }
+
+    @TypeConverter
     fun fromListOfTargetBlocks(blocks: List<TargetBlock>?): String? {
         if (blocks == null) return null;
         val jsonArray = JSONArray()

@@ -34,6 +34,7 @@ import info.nightscout.androidaps.interfaces.PluginType;
 import info.nightscout.androidaps.interfaces.PumpDescription;
 import info.nightscout.androidaps.interfaces.PumpInterface;
 import info.nightscout.androidaps.logging.L;
+import info.nightscout.androidaps.plugins.bus.RxBus;
 import info.nightscout.androidaps.plugins.common.ManufacturerType;
 import info.nightscout.androidaps.plugins.configBuilder.ProfileFunctions;
 import info.nightscout.androidaps.plugins.general.actions.defs.CustomAction;
@@ -134,6 +135,7 @@ public class VirtualPumpPlugin extends PluginBase implements PumpInterface {
     @Override
     protected void onStop() {
         MainApp.bus().unregister(this);
+        super.onStop();
     }
 
     @Subscribe
@@ -224,7 +226,7 @@ public class VirtualPumpPlugin extends PluginBase implements PumpInterface {
         PumpEnactResult result = new PumpEnactResult();
         result.success = true;
         Notification notification = new Notification(Notification.PROFILE_SET_OK, MainApp.gs(R.string.profile_set_ok), Notification.INFO, 60);
-        MainApp.bus().post(new EventNewNotification(notification));
+        RxBus.INSTANCE.send(new EventNewNotification(notification));
         return result;
     }
 

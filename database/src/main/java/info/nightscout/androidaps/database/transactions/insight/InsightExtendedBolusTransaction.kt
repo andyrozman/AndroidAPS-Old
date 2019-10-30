@@ -1,6 +1,5 @@
 package info.nightscout.androidaps.database.transactions.insight
 
-import info.nightscout.androidaps.database.AppRepository
 import info.nightscout.androidaps.database.embedments.InterfaceIDs
 import info.nightscout.androidaps.database.entities.ExtendedBolus
 import info.nightscout.androidaps.database.transactions.Transaction
@@ -23,7 +22,7 @@ class InsightExtendedBolusTransaction(
                 utcOffset = TimeZone.getDefault().getOffset(timestamp).toLong(),
                 amount = amount,
                 duration = duration,
-                emulatingTempBasal = emulatingTempBasal
+                isEmulatingTempBasal = emulatingTempBasal
         ).apply {
             interfaceIDs.pumpType = InterfaceIDs.PumpType.ACCU_CHEK_INSIGHT
             interfaceIDs.pumpSerial = pumpSerial

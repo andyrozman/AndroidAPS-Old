@@ -45,6 +45,7 @@ import info.nightscout.androidaps.interfaces.PluginType;
 import info.nightscout.androidaps.interfaces.PumpDescription;
 import info.nightscout.androidaps.interfaces.PumpInterface;
 import info.nightscout.androidaps.logging.L;
+import info.nightscout.androidaps.plugins.bus.RxBus;
 import info.nightscout.androidaps.plugins.common.ManufacturerType;
 import info.nightscout.androidaps.plugins.configBuilder.ConfigBuilderPlugin;
 import info.nightscout.androidaps.plugins.configBuilder.ProfileFunctions;
@@ -371,7 +372,7 @@ public class LocalInsightPlugin extends PluginBase implements PumpInterface, Con
             setDateTimeMessage.setPumpTime(pumpTime);
             connectionService.requestMessage(setDateTimeMessage).await();
             Notification notification = new Notification(Notification.INSIGHT_DATE_TIME_UPDATED, MainApp.gs(R.string.pump_time_updated), Notification.INFO, 60);
-            MainApp.bus().post(new EventNewNotification(notification));
+            RxBus.INSTANCE.send(new EventNewNotification(notification));
         }
     }
 
@@ -457,7 +458,7 @@ public class LocalInsightPlugin extends PluginBase implements PumpInterface, Con
     @Override
     public PumpEnactResult setNewBasalProfile(Profile profile) {
         PumpEnactResult result = new PumpEnactResult();
-        MainApp.bus().post(new EventDismissNotification(Notification.PROFILE_NOT_SET_NOT_INITIALIZED));
+        RxBus.INSTANCE.send(new EventDismissNotification(Notification.PROFILE_NOT_SET_NOT_INITIALIZED));
         List<BasalProfileBlock> profileBlocks = new ArrayList<>();
         for (int i = 0; i < profile.getBasalValues().length; i++) {
             Profile.ProfileValue basalValue = profile.getBasalValues()[i];
@@ -477,9 +478,9 @@ public class LocalInsightPlugin extends PluginBase implements PumpInterface, Con
             BRProfileBlock profileBlock = new BRProfile1Block();
             profileBlock.setProfileBlocks(profileBlocks);
             ParameterBlockUtil.writeConfigurationBlock(connectionService, profileBlock);
-            MainApp.bus().post(new EventDismissNotification(Notification.FAILED_UDPATE_PROFILE));
+            RxBus.INSTANCE.send(new EventDismissNotification(Notification.FAILED_UDPATE_PROFILE));
             Notification notification = new Notification(Notification.PROFILE_SET_OK, MainApp.gs(R.string.profile_set_ok), Notification.INFO, 60);
-            MainApp.bus().post(new EventNewNotification(notification));
+            RxBus.INSTANCE.send(new EventNewNotification(notification));
             result.success = true;
             result.enacted = true;
             result.comment = MainApp.gs(R.string.virtualpump_resultok);
@@ -491,17 +492,17 @@ public class LocalInsightPlugin extends PluginBase implements PumpInterface, Con
         } catch (AppLayerErrorException e) {
             log.info("Exception while setting profile: " + e.getClass().getCanonicalName() + " (" + e.getErrorCode() + ")");
             Notification notification = new Notification(Notification.FAILED_UDPATE_PROFILE, MainApp.gs(R.string.failedupdatebasalprofile), Notification.URGENT);
-            MainApp.bus().post(new EventNewNotification(notification));
+            RxBus.INSTANCE.send(new EventNewNotification(notification));
             result.comment = ExceptionTranslator.getString(e);
         } catch (InsightException e) {
             log.info("Exception while setting profile: " + e.getClass().getCanonicalName());
             Notification notification = new Notification(Notification.FAILED_UDPATE_PROFILE, MainApp.gs(R.string.failedupdatebasalprofile), Notification.URGENT);
-            MainApp.bus().post(new EventNewNotification(notification));
+            RxBus.INSTANCE.send(new EventNewNotification(notification));
             result.comment = ExceptionTranslator.getString(e);
         } catch (Exception e) {
             log.error("Exception while setting profile", e);
             Notification notification = new Notification(Notification.FAILED_UDPATE_PROFILE, MainApp.gs(R.string.failedupdatebasalprofile), Notification.URGENT);
-            MainApp.bus().post(new EventNewNotification(notification));
+            RxBus.INSTANCE.send(new EventNewNotification(notification));
             result.comment = ExceptionTranslator.getString(e);
         }
         return result;
@@ -981,7 +982,7 @@ public class LocalInsightPlugin extends PluginBase implements PumpInterface, Con
     @Override
     public String serialNumber() {
         if (connectionService == null || alertService == null) return "Unknown";
-        return  connectionService.getPumpSystemIdentification().getSerialNumber();
+        return connectionService.getPumpSystemIdentification().getSerialNumber();
     }
 
 
@@ -1201,7 +1202,7 @@ public class LocalInsightPlugin extends PluginBase implements PumpInterface, Con
     public void onStateChanged(InsightState state) {
         if (state == InsightState.CONNECTED) {
             statusLoaded = false;
-            new Handler(Looper.getMainLooper()).post(() -> MainApp.bus().post(new EventDismissNotification(Notification.INSIGHT_TIMEOUT_DURING_HANDSHAKE)));
+            new Handler(Looper.getMainLooper()).post(() -> RxBus.INSTANCE.send(new EventDismissNotification(Notification.INSIGHT_TIMEOUT_DURING_HANDSHAKE)));
         } else if (state == InsightState.NOT_PAIRED) {
             connectionService.withdrawConnectionRequest(this);
             statusLoaded = false;
@@ -1227,7 +1228,7 @@ public class LocalInsightPlugin extends PluginBase implements PumpInterface, Con
     @Override
     public void onTimeoutDuringHandshake() {
         Notification notification = new Notification(Notification.INSIGHT_TIMEOUT_DURING_HANDSHAKE, MainApp.gs(R.string.timeout_during_handshake), Notification.URGENT);
-        new Handler(Looper.getMainLooper()).post(() -> MainApp.bus().post(new EventNewNotification(notification)));
+        new Handler(Looper.getMainLooper()).post(() -> RxBus.INSTANCE.send(new EventNewNotification(notification)));
     }
 
     @Override

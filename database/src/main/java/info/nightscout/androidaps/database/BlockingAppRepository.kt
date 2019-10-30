@@ -44,4 +44,6 @@ object BlockingAppRepository {
     fun getProfileSwitchesInTimeRange(start: Long, end: Long): List<ProfileSwitch> = AppRepository.getProfileSwitchesInTimeRange(start, end).blockingFirst()
 
     fun getAllProfileSwitches(): List<ProfileSwitch> = AppRepository.getAllProfileSwitches().blockingFirst()
+
+    fun getTemporaryBasalActiveAtIncludingInvalid(timestamp: Long, pumpType: InterfaceIDs.PumpType): TemporaryBasal? = AppRepository.getTemporaryBasalActiveAtIncludingInvalidMaybe(timestamp, pumpType).blockingGet()
 }

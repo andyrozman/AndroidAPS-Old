@@ -18,10 +18,10 @@ interface ProfileSwitchDao : ProfileSwitchDaoWorkaround {
     @Query("DELETE FROM $TABLE_PROFILE_SWITCHES")
     override fun deleteAllEntries()
 
-    @Query("SELECT * FROM $TABLE_PROFILE_SWITCHES WHERE timestamp >= :start AND timestamp <= :end AND referenceId IS NULL AND valid = 1 ORDER BY timestamp ASC")
+    @Query("SELECT * FROM $TABLE_PROFILE_SWITCHES WHERE timestamp >= :start AND timestamp <= :end AND referenceId IS NULL AND isValid = 1 ORDER BY timestamp ASC")
     fun getProfileSwitchesInTimeRange(start: Long, end: Long): Flowable<List<ProfileSwitch>>
 
-    @Query("SELECT * FROM $TABLE_PROFILE_SWITCHES WHERE referenceId IS NULL AND valid = 1 ORDER BY timestamp ASC")
+    @Query("SELECT * FROM $TABLE_PROFILE_SWITCHES WHERE referenceId IS NULL AND isValid = 1 ORDER BY timestamp ASC")
     fun getAllProfileSwitches(): Flowable<List<ProfileSwitch>>
 }
 

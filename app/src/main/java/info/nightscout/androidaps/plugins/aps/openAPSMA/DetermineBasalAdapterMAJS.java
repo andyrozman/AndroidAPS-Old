@@ -16,6 +16,8 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 
+import javax.annotation.Nullable;
+
 import info.nightscout.androidaps.Constants;
 import info.nightscout.androidaps.R;
 import info.nightscout.androidaps.data.IobTotal;
@@ -51,6 +53,7 @@ public class DetermineBasalAdapterMAJS {
         mScriptReader = scriptReader;
     }
 
+    @Nullable
     public DetermineBasalResultMA invoke() {
         DetermineBasalResultMA determineBasalResultMA = null;
 

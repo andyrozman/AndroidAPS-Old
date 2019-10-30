@@ -1,6 +1,5 @@
 package info.nightscout.androidaps.database.transactions.insight
 
-import info.nightscout.androidaps.database.AppRepository
 import info.nightscout.androidaps.database.embedments.InterfaceIDs
 import info.nightscout.androidaps.database.entities.*
 import info.nightscout.androidaps.database.entities.links.MultiwaveBolusLink
@@ -89,7 +88,7 @@ class InsightHistoryTransaction(val pumpSerial: String) : Transaction<Unit>() {
                     utcOffset = TimeZone.getDefault().getOffset(dateStopped).toLong(),
                     timestamp = dateStopped,
                     duration = startEvent.timestamp - dateStopped,
-                    absolute = false,
+                    isAbsolute = false,
                     rate = 0.0,
                     type = info.nightscout.androidaps.database.entities.TemporaryBasal.Type.PUMP_SUSPEND
             ).apply {
@@ -143,7 +142,7 @@ class InsightHistoryTransaction(val pumpSerial: String) : Transaction<Unit>() {
             dbTBR = TemporaryBasal(
                     utcOffset = TimeZone.getDefault().getOffset(temporaryBasal.timestamp).toLong(),
                     timestamp = temporaryBasal.timestamp,
-                    absolute = false,
+                    isAbsolute = false,
                     rate = temporaryBasal.percentage.toDouble(),
                     duration = temporaryBasal.duration,
                     type = info.nightscout.androidaps.database.entities.TemporaryBasal.Type.NORMAL
@@ -176,7 +175,7 @@ class InsightHistoryTransaction(val pumpSerial: String) : Transaction<Unit>() {
             val id = database.temporaryBasalDao.insertNewEntry(TemporaryBasal(
                     utcOffset = TimeZone.getDefault().getOffset(timestamp).toLong(),
                     timestamp = timestamp,
-                    absolute = false,
+                    isAbsolute = false,
                     rate = percentage.toDouble(),
                     duration = duration,
                     type = info.nightscout.androidaps.database.entities.TemporaryBasal.Type.NORMAL
@@ -207,7 +206,7 @@ class InsightHistoryTransaction(val pumpSerial: String) : Transaction<Unit>() {
                     timestamp = timestamp,
                     amount = amount,
                     type = info.nightscout.androidaps.database.entities.Bolus.Type.NORMAL,
-                    basalInsulin = false
+                    isBasalInsulin = false
             )
             bolus.interfaceIDs.pumpId = bolusId
             bolus.interfaceIDs.startId = startId
@@ -237,7 +236,7 @@ class InsightHistoryTransaction(val pumpSerial: String) : Transaction<Unit>() {
                     timestamp = timestamp,
                     amount = amount,
                     duration = duration,
-                    emulatingTempBasal = false
+                    isEmulatingTempBasal = false
             )
             extendedBolus.interfaceIDs.pumpId = bolusId
             extendedBolus.interfaceIDs.startId = startId
@@ -273,26 +272,29 @@ class InsightHistoryTransaction(val pumpSerial: String) : Transaction<Unit>() {
         boluses.groupBy { it.bolusId }
                 .map { entry -> entry.value.find { it.start } to entry.value.findLast { !it.start } }
                 .forEach {
-            val type = it.first?.type ?: it.second!!.type
-            val timestamp = it.first?.timestamp ?: it.second!!.timestamp
-            val utcOffset = TimeZone.getDefault().getOffset(timestamp).toLong()
-            val bolusId = (it.first?.bolusId ?: it.second!!.bolusId).toLong()
-            val startId = it.first?.eventId
-            val endId = it.second?.eventId
-            val (bolusDatabaseId, bolusCreated) = if (type == Bolus.Type.STANDARD || type == Bolus.Type.MULTIWAVE) {
-                saveStandardBolus(timestamp, utcOffset, it.second?.immediateAmount ?: it.first!!.immediateAmount, bolusId, startId, endId)
-            } else {
-                null to false
-            }
-            val (extendedBolusDatabaseId, extendedBolusCreated) = if (type == Bolus.Type.EXTENDED || type == Bolus.Type.MULTIWAVE) {
-                saveExtendedBolus(timestamp, utcOffset, it.second?.extendedAmount ?: it.first!!.extendedAmount, it.second?.duration ?: it.first!!.duration, bolusId, startId, endId)
-            } else {
-                null to false
-            }
-            if (bolusDatabaseId != null && extendedBolusDatabaseId != null) {
-                saveMultiwaveBolusLink(bolusCreated && extendedBolusCreated, bolusId, startId, endId, bolusDatabaseId, extendedBolusDatabaseId)
-            }
-        }
+                    val type = it.first?.type ?: it.second!!.type
+                    val timestamp = it.first?.timestamp ?: it.second!!.timestamp
+                    val utcOffset = TimeZone.getDefault().getOffset(timestamp).toLong()
+                    val bolusId = (it.first?.bolusId ?: it.second!!.bolusId).toLong()
+                    val startId = it.first?.eventId
+                    val endId = it.second?.eventId
+                    val (bolusDatabaseId, bolusCreated) = if (type == Bolus.Type.STANDARD || type == Bolus.Type.MULTIWAVE) {
+                        saveStandardBolus(timestamp, utcOffset, it.second?.immediateAmount
+                                ?: it.first!!.immediateAmount, bolusId, startId, endId)
+                    } else {
+                        null to false
+                    }
+                    val (extendedBolusDatabaseId, extendedBolusCreated) = if (type == Bolus.Type.EXTENDED || type == Bolus.Type.MULTIWAVE) {
+                        saveExtendedBolus(timestamp, utcOffset, it.second?.extendedAmount
+                                ?: it.first!!.extendedAmount, it.second?.duration
+                                ?: it.first!!.duration, bolusId, startId, endId)
+                    } else {
+                        null to false
+                    }
+                    if (bolusDatabaseId != null && extendedBolusDatabaseId != null) {
+                        saveMultiwaveBolusLink(bolusCreated && extendedBolusCreated, bolusId, startId, endId, bolusDatabaseId, extendedBolusDatabaseId)
+                    }
+                }
     }
 
     data class TotalDailyDose(

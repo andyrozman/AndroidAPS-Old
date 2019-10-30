@@ -7,7 +7,7 @@ import info.nightscout.androidaps.database.entities.BolusCalculatorResult
 
 @Suppress("FunctionName")
 @Dao
-interface BolusCalculatorResultDao : BaseDao<BolusCalculatorResult> {
+internal interface BolusCalculatorResultDao : BaseDao<BolusCalculatorResult> {
 
     @Query("SELECT * FROM $TABLE_BOLUS_CALCULATOR_RESULTS WHERE id = :id")
     override fun findById(id: Long): BolusCalculatorResult?

@@ -8,7 +8,7 @@ import info.nightscout.androidaps.database.entities.Bolus
 
 @Suppress("FunctionName")
 @Dao
-interface BolusDao : BaseDao<Bolus> {
+internal interface BolusDao : BaseDao<Bolus> {
 
     @Query("SELECT * FROM $TABLE_BOLUSES WHERE id = :id")
     override fun findById(id: Long): Bolus?
@@ -25,7 +25,7 @@ interface BolusDao : BaseDao<Bolus> {
     @Query("SELECT * FROM $TABLE_BOLUSES WHERE pumpType = :pumpType AND pumpSerial = :pumpSerial AND pumpId = :pumpId AND referenceId IS NULL ORDER BY timestamp DESC LIMIT 1")
     fun findByPumpId(pumpType: InterfaceIDs.PumpType, pumpSerial: String, pumpId: Long?): Bolus?
 
-    @Query("SELECT * FROM $TABLE_BOLUSES WHERE timestamp >= :start AND timestamp <= :end AND referenceId IS NULL AND valid = 1 ORDER BY timestamp ASC")
+    @Query("SELECT * FROM $TABLE_BOLUSES WHERE timestamp >= :start AND timestamp <= :end AND referenceId IS NULL AND isValid = 1 ORDER BY timestamp ASC")
     fun getBolusesInTimeRange(start: Long, end: Long): List<Bolus>
 
     @Query("SELECT * FROM $TABLE_BOLUSES WHERE timestamp >= :start AND referenceId IS NULL AND pumpType = :pumpType AND pumpSerial = :pumpSerial AND valid = 1 ORDER BY timestamp ASC")

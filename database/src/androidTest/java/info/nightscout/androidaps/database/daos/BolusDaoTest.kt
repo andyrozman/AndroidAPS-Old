@@ -12,7 +12,7 @@ class BolusDaoTest : AbstractDaoTest<Bolus>() {
             timestamp = 0,
             utcOffset = 0,
             amount = 5.0,
-            basalInsulin = false,
+            isBasalInsulin = false,
             type = Bolus.Type.NORMAL
     )
 

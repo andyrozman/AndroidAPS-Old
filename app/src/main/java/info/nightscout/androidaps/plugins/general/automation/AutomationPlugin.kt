@@ -13,6 +13,7 @@ import info.nightscout.androidaps.interfaces.PluginBase
 import info.nightscout.androidaps.interfaces.PluginDescription
 import info.nightscout.androidaps.interfaces.PluginType
 import info.nightscout.androidaps.logging.L
+import info.nightscout.androidaps.plugins.aps.loop.LoopPlugin
 import info.nightscout.androidaps.plugins.bus.RxBus
 import info.nightscout.androidaps.plugins.general.automation.actions.*
 import info.nightscout.androidaps.plugins.general.automation.events.EventAutomationDataChanged
@@ -21,12 +22,8 @@ import info.nightscout.androidaps.plugins.general.automation.triggers.*
 import info.nightscout.androidaps.plugins.iob.iobCobCalculator.events.EventAutosensCalculationFinished
 import info.nightscout.androidaps.queue.Callback
 import info.nightscout.androidaps.services.LocationService
-import info.nightscout.androidaps.utils.DateUtil
-import info.nightscout.androidaps.utils.FabricPrivacy
-import info.nightscout.androidaps.utils.SP
-import info.nightscout.androidaps.utils.T
+import info.nightscout.androidaps.utils.*
 import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.disposables.Disposable
 import io.reactivex.schedulers.Schedulers
 import org.json.JSONArray
 import org.json.JSONException
@@ -58,10 +55,6 @@ object AutomationPlugin : PluginBase(PluginDescription()
             processActions()
             loopHandler.postDelayed(refreshLoop, T.mins(1).msecs())
         }
-    }
-
-    operator fun CompositeDisposable.plusAssign(disposable: Disposable) {
-        add(disposable)
     }
 
     override fun onStart() {
@@ -131,6 +124,7 @@ object AutomationPlugin : PluginBase(PluginDescription()
         loopHandler.removeCallbacks(refreshLoop)
         val context = MainApp.instance().applicationContext
         context.stopService(Intent(context, LocationService::class.java))
+        super.onStop()
     }
 
     private fun storeToSP() {
@@ -167,11 +161,16 @@ object AutomationPlugin : PluginBase(PluginDescription()
     private fun processActions() {
         if (!isEnabled(PluginType.GENERAL))
             return
+        if (LoopPlugin.getPlugin().isSuspended) {
+            if (L.isEnabled(L.AUTOMATION))
+                log.debug("Loop deactivated")
+            return
+        }
 
         if (L.isEnabled(L.AUTOMATION))
             log.debug("processActions")
         for (event in automationEvents) {
-            if (event.trigger.shouldRun() && event.preconditions.shouldRun()) {
+            if (event.isEnabled && event.trigger.shouldRun() && event.preconditions.shouldRun()) {
                 val actions = event.actions
                 for (action in actions) {
                     action.doAction(object : Callback() {
@@ -208,7 +207,9 @@ object AutomationPlugin : PluginBase(PluginDescription()
                 ActionStartTempTarget(),
                 ActionStopTempTarget(),
                 ActionNotification(),
-                ActionProfileSwitchPercent()
+                ActionProfileSwitchPercent(),
+                ActionProfileSwitch(),
+                ActionSendSMS()
         )
     }
 
@@ -216,6 +217,7 @@ object AutomationPlugin : PluginBase(PluginDescription()
         return listOf(
                 TriggerTime(),
                 TriggerRecurringTime(),
+                TriggerTimeRange(),
                 TriggerBg(),
                 TriggerDelta(),
                 TriggerIob(),
@@ -225,7 +227,8 @@ object AutomationPlugin : PluginBase(PluginDescription()
                 TriggerWifiSsid(),
                 TriggerLocation(),
                 TriggerAutosensValue(),
-                TriggerBolusAgo()
+                TriggerBolusAgo(),
+                TriggerPumpLastConnection()
         )
     }
 

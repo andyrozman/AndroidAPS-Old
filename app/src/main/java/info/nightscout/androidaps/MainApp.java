@@ -39,6 +39,7 @@ import info.nightscout.androidaps.database.entities.TherapyEvent;
 import info.nightscout.androidaps.database.entities.links.MealLink;
 import info.nightscout.androidaps.database.interfaces.DBEntry;
 import info.nightscout.androidaps.database.interfaces.DBEntryWithTime;
+import info.nightscout.androidaps.database.transactions.SaveVersionChangeIfNeededTransaction;
 import info.nightscout.androidaps.db.DatabaseHelper;
 import info.nightscout.androidaps.interfaces.PluginBase;
 import info.nightscout.androidaps.interfaces.PluginType;
@@ -53,12 +54,13 @@ import info.nightscout.androidaps.plugins.constraints.dstHelper.DstHelperPlugin;
 import info.nightscout.androidaps.plugins.constraints.objectives.ObjectivesPlugin;
 import info.nightscout.androidaps.plugins.constraints.safety.SafetyPlugin;
 import info.nightscout.androidaps.plugins.constraints.storage.StorageConstraintPlugin;
-import info.nightscout.androidaps.plugins.general.actions.ActionsFragment;
+import info.nightscout.androidaps.plugins.general.actions.ActionsPlugin;
 import info.nightscout.androidaps.plugins.general.automation.AutomationPlugin;
 import info.nightscout.androidaps.plugins.general.careportal.CareportalPlugin;
 import info.nightscout.androidaps.plugins.general.food.FoodPlugin;
 import info.nightscout.androidaps.plugins.general.maintenance.LoggerUtils;
 import info.nightscout.androidaps.plugins.general.maintenance.MaintenancePlugin;
+import info.nightscout.androidaps.plugins.general.nsclient.NSClientPlugin;
 import info.nightscout.androidaps.plugins.general.nsclient.receivers.DBAccessReceiver;
 import info.nightscout.androidaps.plugins.general.overview.OverviewPlugin;
 import info.nightscout.androidaps.plugins.general.persistentNotification.PersistentNotificationPlugin;
@@ -92,6 +94,7 @@ import info.nightscout.androidaps.plugins.source.SourceDexcomPlugin;
 import info.nightscout.androidaps.plugins.source.SourceEversensePlugin;
 import info.nightscout.androidaps.plugins.source.SourceGlimpPlugin;
 import info.nightscout.androidaps.plugins.source.SourceMM640gPlugin;
+import info.nightscout.androidaps.plugins.source.SourceNSClientPlugin;
 import info.nightscout.androidaps.plugins.source.SourcePoctechPlugin;
 import info.nightscout.androidaps.plugins.source.SourceTomatoPlugin;
 import info.nightscout.androidaps.plugins.source.SourceXdripPlugin;
@@ -139,6 +142,13 @@ public class MainApp extends Application {
     public void onCreate() {
         super.onCreate();
         AppRepository.INSTANCE.initialize(this);
+        String gitRemote = BuildConfig.REMOTE;
+        String commitHash = BuildConfig.HEAD;
+        if (gitRemote.contains("NoGitSystemAvailable")) {
+            gitRemote = null;
+            commitHash = null;
+        }
+        AppRepository.INSTANCE.runTransaction(new SaveVersionChangeIfNeededTransaction(BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE, gitRemote, commitHash));
         AppRepository.INSTANCE.getChangeObservable()
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(changes -> {
@@ -183,6 +193,8 @@ public class MainApp extends Application {
         sConstraintsChecker = new ConstraintChecker();
         sDatabaseHelper = OpenHelperManager.getHelper(sInstance, DatabaseHelper.class);
 
+        Thread.setDefaultUncaughtExceptionHandler((thread, ex) -> log.error("Uncaught exception crashing app", ex));
+
         try {
             if (FabricPrivacy.fabricEnabled()) {
                 Fabric.with(this, new Crashlytics());
@@ -217,9 +229,9 @@ public class MainApp extends Application {
         if (pluginsList == null) {
             pluginsList = new ArrayList<>();
             // Register all tabs in app here
-            pluginsList.add(OverviewPlugin.getPlugin());
+            pluginsList.add(OverviewPlugin.INSTANCE);
             pluginsList.add(IobCobCalculatorPlugin.getPlugin());
-            if (Config.ACTION) pluginsList.add(ActionsFragment.getPlugin());
+            if (Config.ACTION) pluginsList.add(ActionsPlugin.INSTANCE);
             pluginsList.add(InsulinOrefRapidActingPlugin.getPlugin());
             pluginsList.add(InsulinOrefUltraRapidActingPlugin.getPlugin());
             pluginsList.add(InsulinOrefFreePeakPlugin.getPlugin());
@@ -250,8 +262,9 @@ public class MainApp extends Application {
             if (Config.SAFETY) pluginsList.add(VersionCheckerPlugin.INSTANCE);
             if (Config.SAFETY) pluginsList.add(StorageConstraintPlugin.getPlugin());
             if (Config.SAFETY) pluginsList.add(SignatureVerifier.getPlugin());
-            if (Config.APS) pluginsList.add(ObjectivesPlugin.getPlugin());
+            if (Config.APS) pluginsList.add(ObjectivesPlugin.INSTANCE);
             pluginsList.add(SourceXdripPlugin.INSTANCE);
+            pluginsList.add(SourceNSClientPlugin.INSTANCE);
             pluginsList.add(SourceMM640gPlugin.INSTANCE);
             pluginsList.add(SourceGlimpPlugin.INSTANCE);
             pluginsList.add(SourceDexcomPlugin.INSTANCE);
@@ -264,11 +277,11 @@ public class MainApp extends Application {
             pluginsList.add(WearPlugin.initPlugin(this));
             pluginsList.add(StatuslinePlugin.initPlugin(this));
             pluginsList.add(PersistentNotificationPlugin.getPlugin());
+            pluginsList.add(NSClientPlugin.getPlugin());
             if (engineeringMode)
                 pluginsList.add(TidepoolPlugin.INSTANCE);
             pluginsList.add(MaintenancePlugin.initPlugin(this));
-            if (engineeringMode)
-                pluginsList.add(AutomationPlugin.INSTANCE);
+            pluginsList.add(AutomationPlugin.INSTANCE);
 
             pluginsList.add(ConfigBuilderPlugin.getPlugin());
 

@@ -12,7 +12,7 @@ class TemporaryBasalDaoTest : AbstractDaoTest<TemporaryBasal>() {
     override fun generateTestEntry() = TemporaryBasal(
             timestamp = 0,
             utcOffset = 0,
-            absolute = false,
+            isAbsolute = false,
             duration = TimeUnit.HOURS.toMillis(1),
             rate = 120.0,
             type = TemporaryBasal.Type.NORMAL

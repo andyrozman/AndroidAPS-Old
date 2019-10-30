@@ -1,13 +1,15 @@
 package info.nightscout.androidaps.database.transactions
 
 import androidx.room.Embedded
-import info.nightscout.androidaps.database.AppRepository
 import info.nightscout.androidaps.database.Block
 import info.nightscout.androidaps.database.TargetBlock
 import info.nightscout.androidaps.database.embedments.InsulinConfiguration
 import info.nightscout.androidaps.database.entities.ProfileSwitch
 import java.util.*
 
+/**
+ * Inserts a ProfileSwitch to the database
+ */
 class InsertProfileSwitchTransaction(
         var timestamp: Long,
         var profileName: String,

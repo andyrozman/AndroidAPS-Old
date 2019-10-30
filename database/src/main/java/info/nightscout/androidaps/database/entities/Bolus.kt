@@ -17,8 +17,8 @@ data class Bolus(
         @PrimaryKey(autoGenerate = true)
         override var id: Long = 0,
         override var version: Int = 0,
-        override var lastModified: Long = -1,
-        override var valid: Boolean = true,
+        override var dateCreated: Long = -1,
+        override var isValid: Boolean = true,
         override var referenceId: Long? = null,
         @Embedded
         override var interfaceIDs_backing: InterfaceIDs? = null,
@@ -26,7 +26,7 @@ data class Bolus(
         override var utcOffset: Long,
         var amount: Double,
         var type: Type,
-        var basalInsulin: Boolean,
+        var isBasalInsulin: Boolean,
         @Embedded
         var insulinConfiguration: InsulinConfiguration? = null
 ) : DBEntry, DBEntryWithTime {

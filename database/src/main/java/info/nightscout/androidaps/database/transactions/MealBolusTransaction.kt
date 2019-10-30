@@ -1,11 +1,13 @@
 package info.nightscout.androidaps.database.transactions
 
-import info.nightscout.androidaps.database.AppRepository
 import info.nightscout.androidaps.database.entities.Bolus
 import info.nightscout.androidaps.database.entities.Carbs
 import info.nightscout.androidaps.database.entities.links.MealLink
 import java.util.*
 
+/**
+ * Inserts a Bolus, Carbs, a BolusCalculatorResult and a MealLink into the database
+ */
 class MealBolusTransaction(
         val timestamp: Long,
         val insulin: Double,
@@ -25,7 +27,7 @@ class MealBolusTransaction(
                     utcOffset = utcOffset,
                     amount = insulin,
                     type = type,
-                    basalInsulin = false
+                    isBasalInsulin = false
             ))
         } else {
             null
@@ -51,26 +53,26 @@ class MealBolusTransaction(
                     isf = bolusCalculatorResult.isf,
                     ic = bolusCalculatorResult.ic,
                     bolusIOB = bolusCalculatorResult.bolusIOB,
-                    bolusIOBUsed = bolusCalculatorResult.bolusIOBUsed,
+                    wasBolusIOBUsed = bolusCalculatorResult.bolusIOBUsed,
                     basalIOB = bolusCalculatorResult.basalIOB,
-                    basalIOBUsed = bolusCalculatorResult.basalIOBUsed,
+                    wasBasalIOBUsed = bolusCalculatorResult.basalIOBUsed,
                     glucoseValue = bolusCalculatorResult.glucoseValue,
-                    glucoseUsed = bolusCalculatorResult.glucoseUsed,
+                    wasGlucoseUsed = bolusCalculatorResult.glucoseUsed,
                     glucoseDifference = bolusCalculatorResult.glucoseDifference,
                     glucoseInsulin = bolusCalculatorResult.glucoseInsulin,
                     glucoseTrend = bolusCalculatorResult.glucoseTrend,
-                    trendUsed = bolusCalculatorResult.trendUsed,
+                    wasTrendUsed = bolusCalculatorResult.trendUsed,
                     trendInsulin = bolusCalculatorResult.trendInsulin,
                     carbs = bolusCalculatorResult.carbs,
-                    carbsUsed = bolusCalculatorResult.carbsUsed,
+                    wereCarbsUsed = bolusCalculatorResult.carbsUsed,
                     carbsInsulin = bolusCalculatorResult.carbsInsulin,
                     otherCorrection = bolusCalculatorResult.otherCorrection,
-                    superbolusUsed = bolusCalculatorResult.superbolusUsed,
+                    wasSuperbolusUsed = bolusCalculatorResult.superbolusUsed,
                     superbolusInsulin = bolusCalculatorResult.superbolusInsulin,
-                    tempTargetUsed = bolusCalculatorResult.tempTargetUsed,
+                    wasTempTargetUsed = bolusCalculatorResult.tempTargetUsed,
                     totalInsulin = bolusCalculatorResult.totalInsulin,
                     cob = bolusCalculatorResult.cob,
-                    cobUsed = bolusCalculatorResult.cobUsed,
+                    wasCOBUsed = bolusCalculatorResult.cobUsed,
                     cobInsulin = bolusCalculatorResult.cobInsulin
             ))
         } else {
