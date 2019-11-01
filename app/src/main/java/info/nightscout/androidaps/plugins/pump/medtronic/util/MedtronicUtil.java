@@ -61,6 +61,7 @@ public class MedtronicUtil extends RileyLinkUtil {
     private static int doneBit = 1 << 7;
     private static ClockDTO pumpTime;
     public static Gson gsonInstance = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().create();
+    public static Gson gsonInstanceCore = new GsonBuilder().create();
     public static Gson gsonInstancePretty = new GsonBuilder().excludeFieldsWithoutExposeAnnotation()
             .setPrettyPrinting().create();
     private static BatteryType batteryType = BatteryType.None;
@@ -68,6 +69,10 @@ public class MedtronicUtil extends RileyLinkUtil {
 
     public static Gson getGsonInstance() {
         return gsonInstance;
+    }
+
+    public static Gson getGsonInstanceCore() {
+        return gsonInstanceCore;
     }
 
     public static Gson getGsonInstancePretty() {

@@ -77,6 +77,7 @@ public class MedtronicHistoryData {
     private boolean isInit = false;
 
     private Gson gson;
+    private Gson gsonCore;
 
     private DatabaseHelper databaseHelper = MainApp.getDbHelper();
     private ClockDTO pumpTime;
@@ -94,9 +95,14 @@ public class MedtronicHistoryData {
     public MedtronicHistoryData() {
         this.allHistory = new ArrayList<>();
         this.gson = MedtronicUtil.gsonInstance;
+        this.gsonCore = MedtronicUtil.getGsonInstanceCore();
 
         if (this.gson == null) {
             this.gson = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().create();
+        }
+
+        if (this.gsonCore == null) {
+            this.gsonCore = new GsonBuilder().create();
         }
     }
 
@@ -609,7 +615,7 @@ public class MedtronicHistoryData {
 
         if (doubleBolusDebug)
             LOG.debug("DoubleBolusDebug: List (after filter): {}, FromDb={}", gson.toJson(entryList),
-                    gson.toJson(entriesFromHistory));
+                    gsonCore.toJson(entriesFromHistory));
 
         if (isCollectionEmpty(entriesFromHistory)) {
             for (PumpHistoryEntry treatment : entryList) {

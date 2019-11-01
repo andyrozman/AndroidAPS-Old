@@ -1,8 +1,10 @@
 package info.nightscout.androidaps.plugins.treatments;
 
 import android.graphics.Color;
+
 import androidx.annotation.Nullable;
 
+import com.google.gson.annotations.Expose;
 import com.j256.ormlite.field.DatabaseField;
 import com.j256.ormlite.table.DatabaseTable;
 
@@ -16,8 +18,8 @@ import info.nightscout.androidaps.Constants;
 import info.nightscout.androidaps.MainApp;
 import info.nightscout.androidaps.R;
 import info.nightscout.androidaps.data.Iob;
-import info.nightscout.androidaps.db.DbObjectBase;
 import info.nightscout.androidaps.data.Profile;
+import info.nightscout.androidaps.db.DbObjectBase;
 import info.nightscout.androidaps.db.Source;
 import info.nightscout.androidaps.interfaces.InsulinInterface;
 import info.nightscout.androidaps.plugins.configBuilder.ConfigBuilderPlugin;
@@ -33,26 +35,35 @@ import info.nightscout.androidaps.utils.JsonHelper;
 public class Treatment implements DataPointWithLabelInterface, DbObjectBase {
     public static final String TABLE_TREATMENTS = "Treatments";
 
+    @Expose
     @DatabaseField(id = true)
     public long date;
 
+    @Expose
     @DatabaseField
     public boolean isValid = true;
 
+    @Expose
     @DatabaseField(index = true)
     public long pumpId = 0;
 
+    @Expose
     @DatabaseField
     public int source = Source.NONE;
+    @Expose
     @DatabaseField
     public String _id;
 
+    @Expose
     @DatabaseField
     public double insulin = 0d;
+    @Expose
     @DatabaseField
     public double carbs = 0d;
+    @Expose
     @DatabaseField
     public boolean mealBolus = true; // true for meal bolus , false for correction bolus
+    @Expose
     @DatabaseField
     public boolean isSMB = false;
 
@@ -72,11 +83,11 @@ public class Treatment implements DataPointWithLabelInterface, DbObjectBase {
         treatment.date = DateUtil.roundDateToSec(JsonHelper.safeGetLong(json, "mills"));
         if (treatment.date == 0L)
             return null;
-        treatment.carbs = JsonHelper.safeGetDouble(json,"carbs");
-        treatment.insulin = JsonHelper.safeGetDouble(json,"insulin");
+        treatment.carbs = JsonHelper.safeGetDouble(json, "carbs");
+        treatment.insulin = JsonHelper.safeGetDouble(json, "insulin");
         treatment.pumpId = JsonHelper.safeGetLong(json, "pumpId");
         treatment._id = json.getString("_id");
-        treatment.isSMB = JsonHelper.safeGetBoolean(json,"isSMB");
+        treatment.isSMB = JsonHelper.safeGetBoolean(json, "isSMB");
         if (json.has("eventType")) {
             treatment.mealBolus = !json.get("eventType").equals("Correction Bolus");
             double carbs = treatment.carbs;
@@ -170,11 +181,11 @@ public class Treatment implements DataPointWithLabelInterface, DbObjectBase {
 
     public double getIc() {
         JSONObject bw = getBoluscalc();
-         if (bw == null || !bw.has("ic")) {
-             Profile profile = ProfileFunctions.getInstance().getProfile(date);
-             return profile.getIc(date);
+        if (bw == null || !bw.has("ic")) {
+            Profile profile = ProfileFunctions.getInstance().getProfile(date);
+            return profile.getIc(date);
         }
-         return JsonHelper.safeGetDouble(bw, "ic");
+        return JsonHelper.safeGetDouble(bw, "ic");
     }
 
     /*
