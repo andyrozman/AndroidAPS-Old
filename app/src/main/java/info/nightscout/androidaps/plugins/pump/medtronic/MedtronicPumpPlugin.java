@@ -867,8 +867,12 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
                     }).start();
                 }
 
-                TreatmentsPlugin.getPlugin().addToHistoryTreatment(detailedBolusInfo, true);
+                long now = System.currentTimeMillis();
 
+                detailedBolusInfo.date = now;
+                detailedBolusInfo.deliverAt = now;
+
+                TreatmentsPlugin.getPlugin().addToHistoryTreatment(detailedBolusInfo, true);
                 DetailedBolusInfoStorage.INSTANCE.add(detailedBolusInfo);
 
                 // we subtract insulin, exact amount will be visible with next remainingInsulin update.
@@ -880,7 +884,7 @@ public class MedtronicPumpPlugin extends PumpPluginAbstract implements PumpInter
 
                 // calculate time for bolus and set driver to busy for that time
                 int bolusTime = (int) (detailedBolusInfo.insulin * 42.0d);
-                long time = System.currentTimeMillis() + (bolusTime * 1000);
+                long time = now + (bolusTime * 1000);
 
                 this.busyTimestamps.add(time);
                 setEnableCustomAction(MedtronicCustomActionType.ClearBolusBlock, true);
