@@ -422,7 +422,7 @@ public abstract class PumpPluginAbstract extends PluginBase implements PumpInter
 
                 // no bolus required, carb only treatment
                 TreatmentsPlugin.getPlugin().addToHistoryTreatment(detailedBolusInfo, true);
-                DetailedBolusInfoStorage.INSTANCE.add(detailedBolusInfo);
+                //DetailedBolusInfoStorage.INSTANCE.add(detailedBolusInfo);
 
                 EventOverviewBolusProgress bolusingEvent = EventOverviewBolusProgress.INSTANCE;
                 bolusingEvent.setT(new Treatment());
