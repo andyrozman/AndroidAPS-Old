@@ -2,12 +2,12 @@ apply plugin: 'com.android.application'
 
 ext {
     wearableVersion = "2.4.0"
-    playServicesWearable = "16.0.1"
+    playServicesWearable = "17.0.0"
 }
 
 def generateGitBuild = { ->
 
-    StringBuilder stringBuilder = new StringBuilder();
+    StringBuilder stringBuilder = new StringBuilder()
     stringBuilder.append('"')
     try {
         def stdout = new ByteArrayOutputStream()

@@ -1,5 +1,6 @@
 language: android
 jdk: oraclejdk8
+dist: trusty
 env:
   matrix:
     - ANDROID_TARGET=android-28 ANDROID_ABI=x86 org.gradle.jvmargs=-XX:-OmitStackTraceInFastThrow
@@ -14,11 +15,11 @@ android:
   - extra-google-google_play_services
   
 before_install:
-- yes | sdkmanager "platforms;android-28"
+#- yes | sdkmanager "platforms;android-28"
 
 script:
   # Unit Test
-  - ./gradlew -Pcoverage testFullDebugUnitTest jacocoTestFullDebugUnitTestReport
+  - ./gradlew -Pcoverage -PfirebaseDisable testFullDebugUnitTest jacocoTestFullDebugUnitTestReport
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)

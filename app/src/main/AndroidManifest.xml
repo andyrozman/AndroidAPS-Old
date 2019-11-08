@@ -19,6 +19,7 @@
     <uses-permission android:name="com.google.android.permission.PROVIDE_BACKGROUND" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="com.dexcom.cgm.EXTERNAL_PERMISSION" />
@@ -35,7 +36,7 @@
         android:label="@string/app_name"
         android:roundIcon="${appIconRound}"
         android:supportsRtl="true"
-        android:theme="@style/AppTheme.NoActionBar"
+        android:theme="@style/AppTheme.Launcher"
         android:fullBackupContent="true">
         <meta-data
             android:name="com.google.android.gms.car.application"
@@ -122,15 +123,7 @@
         </receiver>
 
         <!-- NSClient -->
-        <receiver
-            android:name=".plugins.general.nsclient.receivers.RestartReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="info.nightscout.client.RESTART" />
-            </intent-filter>
-        </receiver>
-        <receiver
+         <receiver
             android:name=".plugins.general.nsclient.receivers.DBAccessReceiver"
             android:enabled="true"
             android:exported="true">
@@ -160,6 +153,9 @@
         <!-- Service processing incomming data -->
         <service
             android:name=".services.DataService"
+            android:exported="false" />
+        <service
+            android:name=".services.LocationService"
             android:exported="false" />
         <service
             android:name=".plugins.pump.danaR.services.DanaRExecutionService"
@@ -283,6 +279,23 @@
             android:label="@string/pairing_information"
             android:theme="@style/AppTheme" />
         <activity android:name=".activities.RequestDexcomPermissionActivity" />
+
+        <!-- Medtronic service and activities -->
+        <service
+            android:name=".plugins.pump.medtronic.service.RileyLinkMedtronicService"
+            android:enabled="true"
+            android:exported="true" />
+        <activity android:name=".plugins.pump.common.dialog.RileyLinkBLEScanActivity">
+            <intent-filter>
+                <action android:name="info.nightscout.androidaps.plugins.PumpCommon.dialog.RileyLinkBLEScanActivity" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".plugins.pump.common.hw.rileylink.dialog.RileyLinkStatusActivity"
+            android:label="@string/title_activity_rileylink_settings"
+            android:theme="@style/Theme.AppCompat.NoTitle" />
+        <activity android:name=".plugins.pump.medtronic.dialog.MedtronicHistoryActivity" />
 
         <uses-library android:name="org.apache.http.legacy" android:required="false"/>
 
