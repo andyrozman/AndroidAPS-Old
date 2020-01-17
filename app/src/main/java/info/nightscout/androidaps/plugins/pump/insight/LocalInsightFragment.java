@@ -1,395 +1,317 @@
-package info.nightscout.androidaps.plugins.pump.danaRv2;
+package info.nightscout.androidaps.plugins.pump.insight;
 
-import android.content.ComponentName;
-import android.content.Context;
-import android.content.Intent;
-import android.content.ServiceConnection;
-import android.os.IBinder;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import info.nightscout.androidaps.MainApp;
 import info.nightscout.androidaps.R;
-import info.nightscout.androidaps.data.DetailedBolusInfo;
-import info.nightscout.androidaps.data.Profile;
-import info.nightscout.androidaps.data.PumpEnactResult;
-import info.nightscout.androidaps.db.TemporaryBasal;
-import info.nightscout.androidaps.events.EventAppExit;
-import info.nightscout.androidaps.interfaces.Constraint;
-import info.nightscout.androidaps.logging.L;
 import info.nightscout.androidaps.plugins.bus.RxBus;
-import info.nightscout.androidaps.plugins.pump.common.bolusInfo.DetailedBolusInfoStorage;
-import info.nightscout.androidaps.plugins.pump.common.defs.PumpType;
-import info.nightscout.androidaps.plugins.pump.danaR.AbstractDanaRPlugin;
-import info.nightscout.androidaps.plugins.pump.danaR.DanaRPump;
-import info.nightscout.androidaps.plugins.pump.danaR.comm.MsgBolusStartWithSpeed;
-import info.nightscout.androidaps.plugins.pump.danaRv2.services.DanaRv2ExecutionService;
-import info.nightscout.androidaps.plugins.treatments.Treatment;
-import info.nightscout.androidaps.plugins.treatments.TreatmentsPlugin;
+import info.nightscout.androidaps.plugins.configBuilder.ConfigBuilderPlugin;
+import info.nightscout.androidaps.plugins.pump.insight.app_layer.parameter_blocks.TBROverNotificationBlock;
+import info.nightscout.androidaps.plugins.pump.insight.descriptors.ActiveBasalRate;
+import info.nightscout.androidaps.plugins.pump.insight.descriptors.ActiveBolus;
+import info.nightscout.androidaps.plugins.pump.insight.descriptors.ActiveTBR;
+import info.nightscout.androidaps.plugins.pump.insight.descriptors.CartridgeStatus;
+import info.nightscout.androidaps.plugins.pump.insight.descriptors.InsightState;
+import info.nightscout.androidaps.plugins.pump.insight.descriptors.TotalDailyDose;
+import info.nightscout.androidaps.plugins.pump.insight.events.EventLocalInsightUpdateGUI;
+import info.nightscout.androidaps.queue.Callback;
 import info.nightscout.androidaps.utils.DateUtil;
+import info.nightscout.androidaps.utils.DecimalFormatter;
 import info.nightscout.androidaps.utils.FabricPrivacy;
-import info.nightscout.androidaps.utils.Round;
-import info.nightscout.androidaps.utils.SP;
-import info.nightscout.androidaps.utils.T;
+import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
-import io.reactivex.schedulers.Schedulers;
 
-/**
- * Created by mike on 05.08.2016.
- */
-public class DanaRv2Plugin extends AbstractDanaRPlugin {
+public class LocalInsightFragment extends Fragment implements View.OnClickListener {
     private CompositeDisposable disposable = new CompositeDisposable();
 
-    private static DanaRv2Plugin plugin = null;
+    private static final boolean ENABLE_OPERATING_MODE_BUTTON = false;
 
-    public static DanaRv2Plugin getPlugin() {
-        if (plugin == null)
-            plugin = new DanaRv2Plugin();
-        return plugin;
-    }
+    private boolean viewsCreated;
+    private Button operatingMode;
+    private Button tbrOverNotification;
+    private Button refresh;
+    private LinearLayout statusItemContainer = null;
 
-    private DanaRv2Plugin() {
-        pluginDescription.description(R.string.description_pump_dana_r_v2);
+    private Callback operatingModeCallback;
+    private Callback tbrOverNotificationCallback;
+    private Callback refreshCallback;
 
-        useExtendedBoluses = false;
-        pumpDescription.setPumpDescription(PumpType.DanaRv2);
+    @Nullable
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.local_insight_fragment, container, false);
+        statusItemContainer = view.findViewById(R.id.status_item_container);
+        tbrOverNotification = view.findViewById(R.id.tbr_over_notification);
+        tbrOverNotification.setOnClickListener(this);
+        operatingMode = view.findViewById(R.id.operating_mode);
+        operatingMode.setOnClickListener(this);
+        refresh = view.findViewById(R.id.refresh);
+        refresh.setOnClickListener(this);
+        viewsCreated = true;
+        return view;
     }
 
     @Override
-    protected void onStart() {
-        Context context = MainApp.instance().getApplicationContext();
-        Intent intent = new Intent(context, DanaRv2ExecutionService.class);
-        context.bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
-
+    public synchronized void onResume() {
+        super.onResume();
         disposable.add(RxBus.INSTANCE
-                .toObservable(EventAppExit.class)
-                .observeOn(Schedulers.io())
-                .subscribe(event -> {
-                    MainApp.instance().getApplicationContext().unbindService(mConnection);
-                }, FabricPrivacy::logException)
+                .toObservable(EventLocalInsightUpdateGUI.class)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(event -> updateGUI(), FabricPrivacy::logException)
         );
-        super.onStart();
+        updateGUI();
     }
 
     @Override
-    protected void onStop() {
-        Context context = MainApp.instance().getApplicationContext();
-        context.unbindService(mConnection);
-
+    public synchronized void onPause() {
+        super.onPause();
         disposable.clear();
-        super.onStop();
-    }
-
-    private ServiceConnection mConnection = new ServiceConnection() {
-
-        public void onServiceDisconnected(ComponentName name) {
-            if (L.isEnabled(L.PUMP))
-                log.debug("Service is disconnected");
-            sExecutionService = null;
-        }
-
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            if (L.isEnabled(L.PUMP))
-                log.debug("Service is connected");
-            DanaRv2ExecutionService.LocalBinder mLocalBinder = (DanaRv2ExecutionService.LocalBinder) service;
-            sExecutionService = mLocalBinder.getServiceInstance();
-        }
-    };
-
-    // Plugin base interface
-    @Override
-    public String getName() {
-        return MainApp.gs(R.string.danarv2pump);
     }
 
     @Override
-    public int getPreferencesId() {
-        return R.xml.pref_danarv2;
+    public synchronized void onDestroyView() {
+        super.onDestroyView();
+        viewsCreated = false;
     }
 
     @Override
-    public boolean isFakingTempsByExtendedBoluses() {
-        return false;
-    }
-
-    @Override
-    public boolean isInitialized() {
-        return DanaRPump.getInstance().lastConnection > 0 && DanaRPump.getInstance().maxBasal > 0 && DanaRPump.getInstance().isPasswordOK();
-    }
-
-    @Override
-    public boolean isHandshakeInProgress() {
-        return sExecutionService != null && sExecutionService.isHandshakeInProgress();
-    }
-
-    @Override
-    public void finishHandshaking() {
-        sExecutionService.finishHandshaking();
-    }
-
-    // Pump interface
-    @Override
-    public PumpEnactResult deliverTreatment(DetailedBolusInfo detailedBolusInfo) {
-        detailedBolusInfo.insulin = MainApp.getConstraintChecker().applyBolusConstraints(new Constraint<>(detailedBolusInfo.insulin)).value();
-        if (detailedBolusInfo.insulin > 0 || detailedBolusInfo.carbs > 0) {
-            // v2 stores end time for bolus, we need to adjust time
-            // default delivery speed is 12 sec/U
-            int preferencesSpeed = SP.getInt(R.string.key_danars_bolusspeed, 0);
-            int speed = 12;
-            switch (preferencesSpeed) {
-                case 0:
-                    speed = 12;
-                    break;
-                case 1:
-                    speed = 30;
-                    break;
-                case 2:
-                    speed = 60;
-                    break;
-            }
-            detailedBolusInfo.date = DateUtil.now() + (long) (speed * detailedBolusInfo.insulin * 1000);
-            // clean carbs to prevent counting them as twice because they will picked up as another record
-            // I don't think it's necessary to copy DetailedBolusInfo right now for carbs records
-            double carbs = detailedBolusInfo.carbs;
-            detailedBolusInfo.carbs = 0;
-            int carbTime = detailedBolusInfo.carbTime;
-            if (carbTime == 0) carbTime--; // better set 1 man back to prevent clash with insulin
-            detailedBolusInfo.carbTime = 0;
-
-            DetailedBolusInfoStorage.INSTANCE.add(detailedBolusInfo); // will be picked up on reading history
-
-            Treatment t = new Treatment();
-            t.isSMB = detailedBolusInfo.isSMB;
-            boolean connectionOK = false;
-            if (detailedBolusInfo.insulin > 0 || carbs > 0)
-                connectionOK = sExecutionService.bolus(detailedBolusInfo.insulin, (int) carbs, DateUtil.now() + T.mins(carbTime).msecs(), t);
-            PumpEnactResult result = new PumpEnactResult();
-            result.success = connectionOK && Math.abs(detailedBolusInfo.insulin - t.insulin) < pumpDescription.bolusStep;
-            result.bolusDelivered = t.insulin;
-            result.carbsDelivered = detailedBolusInfo.carbs;
-            if (!result.success)
-                result.comment = String.format(MainApp.gs(R.string.boluserrorcode), detailedBolusInfo.insulin, t.insulin, MsgBolusStartWithSpeed.errorCode);
-            else
-                result.comment = MainApp.gs(R.string.virtualpump_resultok);
-            if (L.isEnabled(L.PUMP))
-                log.debug("deliverTreatment: OK. Asked: " + detailedBolusInfo.insulin + " Delivered: " + result.bolusDelivered);
-            // remove carbs because it's get from history seprately
-            return result;
-        } else {
-            PumpEnactResult result = new PumpEnactResult();
-            result.success = false;
-            result.bolusDelivered = 0d;
-            result.carbsDelivered = 0d;
-            result.comment = MainApp.gs(R.string.danar_invalidinput);
-            log.error("deliverTreatment: Invalid input");
-            return result;
-        }
-    }
-
-    @Override
-    public void stopBolusDelivering() {
-        if (sExecutionService == null) {
-            log.error("stopBolusDelivering sExecutionService is null");
-            return;
-        }
-        sExecutionService.bolusStop();
-    }
-
-    // This is called from APS
-    @Override
-    public PumpEnactResult setTempBasalAbsolute(Double absoluteRate, Integer durationInMinutes, Profile profile, boolean enforceNew) {
-        // Recheck pump status if older than 30 min
-        //This should not be needed while using queue because connection should be done before calling this
-        //if (pump.lastConnection.getTime() + 30 * 60 * 1000L < System.currentTimeMillis()) {
-        //    connect("setTempBasalAbsolute old data");
-        //}
-
-        PumpEnactResult result = new PumpEnactResult();
-
-        absoluteRate = MainApp.getConstraintChecker().applyBasalConstraints(new Constraint<>(absoluteRate), profile).value();
-
-        final boolean doTempOff = getBaseBasalRate() - absoluteRate == 0d;
-        final boolean doLowTemp = absoluteRate < getBaseBasalRate();
-        final boolean doHighTemp = absoluteRate > getBaseBasalRate();
-
-        if (doTempOff) {
-            // If temp in progress
-            if (TreatmentsPlugin.getPlugin().isTempBasalInProgress()) {
-                if (L.isEnabled(L.PUMP))
-                    log.debug("setTempBasalAbsolute: Stopping temp basal (doTempOff)");
-                return cancelTempBasal(false);
-            }
-            result.success = true;
-            result.enacted = false;
-            result.percent = 100;
-            result.isPercent = true;
-            result.isTempCancel = true;
-            if (L.isEnabled(L.PUMP))
-                log.debug("setTempBasalAbsolute: doTempOff OK");
-            return result;
-        }
-
-        if (doLowTemp || doHighTemp) {
-            Integer percentRate = Double.valueOf(absoluteRate / getBaseBasalRate() * 100).intValue();
-            if (percentRate < 100) percentRate = Round.ceilTo((double) percentRate, 10d).intValue();
-            else percentRate = Round.floorTo((double) percentRate, 10d).intValue();
-            if (percentRate > 500) // Special high temp 500/15min
-                percentRate = 500;
-            // Check if some temp is already in progress
-            TemporaryBasal activeTemp = TreatmentsPlugin.getPlugin().getTempBasalFromHistory(System.currentTimeMillis());
-            if (activeTemp != null) {
-                // Correct basal already set ?
-                if (activeTemp.percentRate == percentRate && activeTemp.getPlannedRemainingMinutes() > 4) {
-                    if (!enforceNew) {
-                        result.success = true;
-                        result.percent = percentRate;
-                        result.enacted = false;
-                        result.duration = activeTemp.getPlannedRemainingMinutes();
-                        result.isPercent = true;
-                        result.isTempCancel = false;
-                        if (L.isEnabled(L.PUMP))
-                            log.debug("setTempBasalAbsolute: Correct temp basal already set (doLowTemp || doHighTemp)");
-                        return result;
+    public void onClick(View v) {
+        if (v == operatingMode) {
+            if (LocalInsightPlugin.getPlugin().getOperatingMode() != null) {
+                operatingMode.setEnabled(false);
+                operatingModeCallback = new Callback() {
+                    @Override
+                    public void run() {
+                        new Handler(Looper.getMainLooper()).post(() -> {
+                            operatingModeCallback = null;
+                            updateGUI();
+                        });
                     }
+                };
+                switch (LocalInsightPlugin.getPlugin().getOperatingMode()) {
+                    case PAUSED:
+                    case STOPPED:
+                        ConfigBuilderPlugin.getPlugin().getCommandQueue().startPump(operatingModeCallback);
+                        break;
+                    case STARTED:
+                        ConfigBuilderPlugin.getPlugin().getCommandQueue().stopPump(operatingModeCallback);
                 }
             }
-            // Convert duration from minutes to hours
-            if (L.isEnabled(L.PUMP))
-                log.debug("setTempBasalAbsolute: Setting temp basal " + percentRate + "% for " + durationInMinutes + " mins (doLowTemp || doHighTemp)");
-            if (percentRate == 0 && durationInMinutes > 30) {
-                result = setTempBasalPercent(percentRate, durationInMinutes, profile, enforceNew);
-            } else {
-                // use special APS temp basal call ... 100+/15min .... 100-/30min
-                result = setHighTempBasalPercent(percentRate);
+        } else if (v == tbrOverNotification) {
+            TBROverNotificationBlock notificationBlock = LocalInsightPlugin.getPlugin().getTBROverNotificationBlock();
+            if (notificationBlock != null) {
+                tbrOverNotification.setEnabled(false);
+                tbrOverNotificationCallback = new Callback() {
+                    @Override
+                    public void run() {
+                        new Handler(Looper.getMainLooper()).post(() -> {
+                            tbrOverNotificationCallback = null;
+                            updateGUI();
+                        });
+                    }
+                };
+                ConfigBuilderPlugin.getPlugin().getCommandQueue()
+                        .setTBROverNotification(tbrOverNotificationCallback, !notificationBlock.isEnabled());
             }
-            if (!result.success) {
-                log.error("setTempBasalAbsolute: Failed to set hightemp basal");
-                return result;
+        } else if (v == refresh) {
+            refresh.setEnabled(false);
+            refreshCallback = new Callback() {
+                @Override
+                public void run() {
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        refreshCallback = null;
+                        updateGUI();
+                    });
+                }
+            };
+            ConfigBuilderPlugin.getPlugin().getCommandQueue().readStatus("InsightRefreshButton", refreshCallback);
+        }
+    }
+
+    protected void updateGUI() {
+        if (!viewsCreated) return;
+        statusItemContainer.removeAllViews();
+        if (!LocalInsightPlugin.getPlugin().isInitialized()) {
+            operatingMode.setVisibility(View.GONE);
+            tbrOverNotification.setVisibility(View.GONE);
+            refresh.setVisibility(View.GONE);
+            return;
+        }
+        refresh.setVisibility(View.VISIBLE);
+        refresh.setEnabled(refreshCallback == null);
+        TBROverNotificationBlock notificationBlock = LocalInsightPlugin.getPlugin().getTBROverNotificationBlock();
+        tbrOverNotification.setVisibility(notificationBlock == null ? View.GONE : View.VISIBLE);
+        if (notificationBlock != null)
+            tbrOverNotification.setText(notificationBlock.isEnabled() ? R.string.disable_tbr_over_notification : R.string.enable_tbr_over_notification);
+        tbrOverNotification.setEnabled(tbrOverNotificationCallback == null);
+        List<View> statusItems = new ArrayList<>();
+        getConnectionStatusItem(statusItems);
+        getLastConnectedItem(statusItems);
+        getOperatingModeItem(statusItems);
+        getBatteryStatusItem(statusItems);
+        getCartridgeStatusItem(statusItems);
+        getTDDItems(statusItems);
+        getBaseBasalRateItem(statusItems);
+        getTBRItem(statusItems);
+        getBolusItems(statusItems);
+        for (int i = 0; i < statusItems.size(); i++) {
+            statusItemContainer.addView(statusItems.get(i));
+            if (i != statusItems.size() - 1)
+                getLayoutInflater().inflate(R.layout.local_insight_status_delimitter, statusItemContainer);
+        }
+    }
+
+    private View getStatusItem(String label, String value) {
+        View statusItem = getLayoutInflater().inflate(R.layout.local_insight_status_item, null);
+        ((TextView) statusItem.findViewById(R.id.label)).setText(label);
+        ((TextView) statusItem.findViewById(R.id.value)).setText(value);
+        return statusItem;
+    }
+
+    private void getConnectionStatusItem(List<View> statusItems) {
+        int string = 0;
+        InsightState state = LocalInsightPlugin.getPlugin().getConnectionService().getState();
+        switch (state) {
+            case NOT_PAIRED:
+                string = R.string.not_paired;
+                break;
+            case DISCONNECTED:
+                string = R.string.disconnected;
+                break;
+            case CONNECTING:
+            case SATL_CONNECTION_REQUEST:
+            case SATL_KEY_REQUEST:
+            case SATL_SYN_REQUEST:
+            case SATL_VERIFY_CONFIRM_REQUEST:
+            case SATL_VERIFY_DISPLAY_REQUEST:
+            case APP_ACTIVATE_PARAMETER_SERVICE:
+            case APP_ACTIVATE_STATUS_SERVICE:
+            case APP_BIND_MESSAGE:
+            case APP_CONNECT_MESSAGE:
+            case APP_FIRMWARE_VERSIONS:
+            case APP_SYSTEM_IDENTIFICATION:
+            case AWAITING_CODE_CONFIRMATION:
+                string = R.string.connecting;
+                break;
+            case CONNECTED:
+                string = R.string.connected;
+                break;
+            case RECOVERING:
+                string = R.string.recovering;
+                break;
+        }
+        statusItems.add(getStatusItem(MainApp.gs(R.string.insight_status), MainApp.gs(string)));
+        if (state == InsightState.RECOVERING) {
+            statusItems.add(getStatusItem(MainApp.gs(R.string.recovery_duration), LocalInsightPlugin.getPlugin().getConnectionService().getRecoveryDuration() / 1000 + "s"));
+        }
+    }
+
+    private void getLastConnectedItem(List<View> statusItems) {
+        switch (LocalInsightPlugin.getPlugin().getConnectionService().getState()) {
+            case CONNECTED:
+            case NOT_PAIRED:
+                return;
+            default:
+                long lastConnection = LocalInsightPlugin.getPlugin().getConnectionService().getLastConnected();
+                if (lastConnection == 0) return;
+                int min = (int) ((System.currentTimeMillis() - lastConnection) / 60000);
+                statusItems.add(getStatusItem(MainApp.gs(R.string.last_connected), DateUtil.timeString(lastConnection)));
+        }
+    }
+
+    private void getOperatingModeItem(List<View> statusItems) {
+        if (LocalInsightPlugin.getPlugin().getOperatingMode() == null) {
+            operatingMode.setVisibility(View.GONE);
+            return;
+        }
+        int string = 0;
+        if (ENABLE_OPERATING_MODE_BUTTON) operatingMode.setVisibility(View.VISIBLE);
+        operatingMode.setEnabled(operatingModeCallback == null);
+        switch (LocalInsightPlugin.getPlugin().getOperatingMode()) {
+            case STARTED:
+                operatingMode.setText(R.string.stop_pump);
+                string = R.string.started;
+                break;
+            case STOPPED:
+                operatingMode.setText(R.string.start_pump);
+                string = R.string.stopped;
+                break;
+            case PAUSED:
+                operatingMode.setText(R.string.start_pump);
+                string = R.string.paused;
+                break;
+        }
+        statusItems.add(getStatusItem(MainApp.gs(R.string.operating_mode), MainApp.gs(string)));
+    }
+
+    private void getBatteryStatusItem(List<View> statusItems) {
+        if (LocalInsightPlugin.getPlugin().getBatteryStatus() == null) return;
+        statusItems.add(getStatusItem(MainApp.gs(R.string.pump_battery_label),
+                LocalInsightPlugin.getPlugin().getBatteryStatus().getBatteryAmount() + "%"));
+    }
+
+    private void getCartridgeStatusItem(List<View> statusItems) {
+        CartridgeStatus cartridgeStatus = LocalInsightPlugin.getPlugin().getCartridgeStatus();
+        if (cartridgeStatus == null) return;
+        String status;
+        if (cartridgeStatus.isInserted())
+            status = DecimalFormatter.to2Decimal(LocalInsightPlugin.getPlugin().getCartridgeStatus().getRemainingAmount()) + "U";
+        else status = MainApp.gs(R.string.not_inserted);
+        statusItems.add(getStatusItem(MainApp.gs(R.string.pump_reservoir_label), status));
+    }
+
+    private void getTDDItems(List<View> statusItems) {
+        if (LocalInsightPlugin.getPlugin().getTotalDailyDose() == null) return;
+        TotalDailyDose tdd = LocalInsightPlugin.getPlugin().getTotalDailyDose();
+        statusItems.add(getStatusItem(MainApp.gs(R.string.tdd_bolus), DecimalFormatter.to2Decimal(tdd.getBolus())));
+        statusItems.add(getStatusItem(MainApp.gs(R.string.tdd_basal), DecimalFormatter.to2Decimal(tdd.getBasal())));
+        statusItems.add(getStatusItem(MainApp.gs(R.string.tdd_total), DecimalFormatter.to2Decimal(tdd.getBolusAndBasal())));
+    }
+
+    private void getBaseBasalRateItem(List<View> statusItems) {
+        if (LocalInsightPlugin.getPlugin().getActiveBasalRate() == null) return;
+        ActiveBasalRate activeBasalRate = LocalInsightPlugin.getPlugin().getActiveBasalRate();
+        statusItems.add(getStatusItem(MainApp.gs(R.string.pump_basebasalrate_label),
+                DecimalFormatter.to2Decimal(activeBasalRate.getActiveBasalRate()) + " U/h (" + activeBasalRate.getActiveBasalProfileName() + ")"));
+    }
+
+    private void getTBRItem(List<View> statusItems) {
+        if (LocalInsightPlugin.getPlugin().getActiveTBR() == null) return;
+        ActiveTBR activeTBR = LocalInsightPlugin.getPlugin().getActiveTBR();
+        statusItems.add(getStatusItem(MainApp.gs(R.string.pump_tempbasal_label),
+                MainApp.gs(R.string.tbr_formatter, activeTBR.getPercentage(), activeTBR.getInitialDuration() - activeTBR.getRemainingDuration(), activeTBR.getInitialDuration())));
+    }
+
+    private void getBolusItems(List<View> statusItems) {
+        if (LocalInsightPlugin.getPlugin().getActiveBoluses() == null) return;
+        for (ActiveBolus activeBolus : LocalInsightPlugin.getPlugin().getActiveBoluses()) {
+            String label;
+            switch (activeBolus.getBolusType()) {
+                case MULTIWAVE:
+                    label = MainApp.gs(R.string.multiwave_bolus);
+                    break;
+                case EXTENDED:
+                    label = MainApp.gs(R.string.extended_bolus);
+                    break;
+                default:
+                    continue;
             }
-            if (L.isEnabled(L.PUMP))
-                log.debug("setTempBasalAbsolute: hightemp basal set ok");
-            return result;
+            statusItems.add(getStatusItem(label, MainApp.gs(R.string.eb_formatter, activeBolus.getRemainingAmount(), activeBolus.getInitialAmount(), activeBolus.getRemainingDuration())));
         }
-        // We should never end here
-        log.error("setTempBasalAbsolute: Internal error");
-        result.success = false;
-        result.comment = "Internal error";
-        return result;
-    }
-
-    @Override
-    public PumpEnactResult setTempBasalPercent(Integer percent, Integer durationInMinutes, Profile profile, boolean enforceNew) {
-        DanaRPump pump = DanaRPump.getInstance();
-        PumpEnactResult result = new PumpEnactResult();
-        percent = MainApp.getConstraintChecker().applyBasalPercentConstraints(new Constraint<>(percent), profile).value();
-        if (percent < 0) {
-            result.isTempCancel = false;
-            result.enacted = false;
-            result.success = false;
-            result.comment = MainApp.gs(R.string.danar_invalidinput);
-            log.error("setTempBasalPercent: Invalid input");
-            return result;
-        }
-        if (percent > getPumpDescription().maxTempPercent)
-            percent = getPumpDescription().maxTempPercent;
-        long now = System.currentTimeMillis();
-        TemporaryBasal activeTemp = TreatmentsPlugin.getPlugin().getRealTempBasalFromHistory(now);
-        if (activeTemp != null && activeTemp.percentRate == percent && activeTemp.getPlannedRemainingMinutes() > 4 && !enforceNew) {
-            result.enacted = false;
-            result.success = true;
-            result.isTempCancel = false;
-            result.comment = MainApp.gs(R.string.virtualpump_resultok);
-            result.duration = pump.tempBasalRemainingMin;
-            result.percent = pump.tempBasalPercent;
-            result.isPercent = true;
-            if (L.isEnabled(L.PUMP))
-                log.debug("setTempBasalPercent: Correct value already set");
-            return result;
-        }
-        boolean connectionOK;
-        if (durationInMinutes == 15 || durationInMinutes == 30) {
-            connectionOK = sExecutionService.tempBasalShortDuration(percent, durationInMinutes);
-        } else {
-            int durationInHours = Math.max(durationInMinutes / 60, 1);
-            connectionOK = sExecutionService.tempBasal(percent, durationInHours);
-        }
-        if (connectionOK && pump.isTempBasalInProgress && pump.tempBasalPercent == percent) {
-            result.enacted = true;
-            result.success = true;
-            result.comment = MainApp.gs(R.string.virtualpump_resultok);
-            result.isTempCancel = false;
-            result.duration = pump.tempBasalRemainingMin;
-            result.percent = pump.tempBasalPercent;
-            result.isPercent = true;
-            if (L.isEnabled(L.PUMP))
-                log.debug("setTempBasalPercent: OK");
-            return result;
-        }
-        result.enacted = false;
-        result.success = false;
-        result.comment = MainApp.gs(R.string.tempbasaldeliveryerror);
-        log.error("setTempBasalPercent: Failed to set temp basal");
-        return result;
-    }
-
-    private PumpEnactResult setHighTempBasalPercent(Integer percent) {
-        DanaRPump pump = DanaRPump.getInstance();
-        PumpEnactResult result = new PumpEnactResult();
-        boolean connectionOK = sExecutionService.highTempBasal(percent);
-        if (connectionOK && pump.isTempBasalInProgress && pump.tempBasalPercent == percent) {
-            result.enacted = true;
-            result.success = true;
-            result.comment = MainApp.gs(R.string.virtualpump_resultok);
-            result.isTempCancel = false;
-            result.duration = pump.tempBasalRemainingMin;
-            result.percent = pump.tempBasalPercent;
-            result.isPercent = true;
-            if (L.isEnabled(L.PUMP))
-                log.debug("setHighTempBasalPercent: OK");
-            return result;
-        }
-        result.enacted = false;
-        result.success = false;
-        result.comment = MainApp.gs(R.string.danar_valuenotsetproperly);
-        log.error("setHighTempBasalPercent: Failed to set temp basal");
-        return result;
-    }
-
-    @Override
-    public PumpEnactResult cancelTempBasal(boolean force) {
-        PumpEnactResult result = new PumpEnactResult();
-        TemporaryBasal runningTB = TreatmentsPlugin.getPlugin().getTempBasalFromHistory(System.currentTimeMillis());
-        if (runningTB != null) {
-            sExecutionService.tempBasalStop();
-            result.enacted = true;
-            result.isTempCancel = true;
-        }
-        if (!DanaRPump.getInstance().isTempBasalInProgress) {
-            result.success = true;
-            result.isTempCancel = true;
-            result.comment = MainApp.gs(R.string.virtualpump_resultok);
-            if (L.isEnabled(L.PUMP))
-                log.debug("cancelRealTempBasal: OK");
-            return result;
-        } else {
-            result.success = false;
-            result.comment = MainApp.gs(R.string.danar_valuenotsetproperly);
-            result.isTempCancel = true;
-            log.error("cancelRealTempBasal: Failed to cancel temp basal");
-            return result;
-        }
-    }
-
-    @Override
-    public PumpType model() {
-        return PumpType.DanaRv2;
-    }
-
-    @Override
-    public PumpEnactResult loadEvents() {
-        return sExecutionService.loadEvents();
-    }
-
-    @Override
-    public PumpEnactResult setUserOptions() {
-        return sExecutionService.setUserOptions();
     }
 }

@@ -87,4 +87,12 @@
     <color name="gray">#BBBBBB</color>
 
     <color name="ic_launcher_background">#424242</color>
+
+    <!-- Overview scheme -->
+    <color name="loopenabled">#47c8ff</color>
+    <color name="loopdisabled">#FFDD7792</color>
+    <color name="looppumpsuspended">#ff0400</color>
+    <color name="tempTargetDisabledBackground">#303F9F</color>
+
+
 </resources>

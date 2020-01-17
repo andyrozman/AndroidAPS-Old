@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.SystemClock;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -27,8 +28,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
-import info.nightscout.androidaps.plugins.pump.combo.ruffyscripter.commands.ReadQuickInfoCommand;
-import info.nightscout.androidaps.plugins.pump.combo.ruffyscripter.history.PumpHistoryRequest;
+import info.nightscout.androidaps.plugins.pump.combo.data.ComboDataUtil;
 import info.nightscout.androidaps.plugins.pump.combo.ruffyscripter.commands.BolusCommand;
 import info.nightscout.androidaps.plugins.pump.combo.ruffyscripter.commands.CancelTbrCommand;
 import info.nightscout.androidaps.plugins.pump.combo.ruffyscripter.commands.Command;
@@ -37,8 +37,10 @@ import info.nightscout.androidaps.plugins.pump.combo.ruffyscripter.commands.Conf
 import info.nightscout.androidaps.plugins.pump.combo.ruffyscripter.commands.ReadBasalProfileCommand;
 import info.nightscout.androidaps.plugins.pump.combo.ruffyscripter.commands.ReadHistoryCommand;
 import info.nightscout.androidaps.plugins.pump.combo.ruffyscripter.commands.ReadPumpStateCommand;
+import info.nightscout.androidaps.plugins.pump.combo.ruffyscripter.commands.ReadQuickInfoCommand;
 import info.nightscout.androidaps.plugins.pump.combo.ruffyscripter.commands.SetBasalProfileCommand;
 import info.nightscout.androidaps.plugins.pump.combo.ruffyscripter.commands.SetTbrCommand;
+import info.nightscout.androidaps.plugins.pump.combo.ruffyscripter.history.PumpHistoryRequest;
 
 /**
  * Provides scripting 'runtime' and operations. consider moving operations into a separate
@@ -285,21 +287,21 @@ public class RuffyScripter implements RuffyCommands {
                         log.debug("Pump state before running command: " + pumpState);
 
                         // execute the command
-                    cmd.setScripter(RuffyScripter.this);
-                    long cmdStartTime = System.currentTimeMillis();
-                    cmd.execute();
-                    long cmdEndTime = System.currentTimeMillis();
-                    log.debug("Executing " + cmd + " took " + (cmdEndTime - cmdStartTime) + "ms");
-                } catch (CommandException e) {
-                    log.error("CommandException running command", e);
-                    addError(e);
-                    cmd.getResult().success = false;
-                } catch (Exception e) {
-                    log.error("Unexpected exception running cmd", e);
-                    addError(e);
-                    cmd.getResult().success = false;
-                }
-            }, cmd.getClass().getSimpleName());
+                        cmd.setScripter(RuffyScripter.this);
+                        long cmdStartTime = System.currentTimeMillis();
+                        cmd.execute();
+                        long cmdEndTime = System.currentTimeMillis();
+                        log.debug("Executing " + cmd + " took " + (cmdEndTime - cmdStartTime) + "ms");
+                    } catch (CommandException e) {
+                        log.error("CommandException running command", e);
+                        addError(e);
+                        cmd.getResult().success = false;
+                    } catch (Exception e) {
+                        log.error("Unexpected exception running cmd", e);
+                        addError(e);
+                        cmd.getResult().success = false;
+                    }
+                }, cmd.getClass().getSimpleName());
                 long executionStart = System.currentTimeMillis();
                 cmdThread.start();
 
@@ -902,8 +904,8 @@ public class RuffyScripter implements RuffyCommands {
                 // when a command returns
                 WarningOrErrorCode displayedWarning = readWarningOrErrorCode();
                 while (Objects.equals(displayedWarning.warningCode, warningCode)) {
-                   waitForScreenUpdate();
-                   displayedWarning = readWarningOrErrorCode();
+                    waitForScreenUpdate();
+                    displayedWarning = readWarningOrErrorCode();
                 }
                 return true;
             }
