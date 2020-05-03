@@ -5,17 +5,20 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.RadioButton
-import androidx.fragment.app.DialogFragment
+import info.nightscout.androidaps.MainApp
 import info.nightscout.androidaps.R
+import info.nightscout.androidaps.dialogs.DialogFragmentWithDate
 import info.nightscout.androidaps.plugins.general.automation.AutomationPlugin
 import info.nightscout.androidaps.plugins.general.automation.triggers.Trigger
 import kotlinx.android.synthetic.main.automation_dialog_choose_trigger.*
-import kotlinx.android.synthetic.main.okcancel.*
+import javax.inject.Inject
+import kotlin.reflect.full.primaryConstructor
 
-class ChooseTriggerDialog : DialogFragment() {
+class ChooseTriggerDialog : DialogFragmentWithDate() {
+    @Inject lateinit var automationPlugin: AutomationPlugin
+    @Inject lateinit var mainApp : MainApp
 
     private var checkedIndex = -1
-
     private var clickListener: OnClickListener? = null
 
     interface OnClickListener {
@@ -29,59 +32,52 @@ class ChooseTriggerDialog : DialogFragment() {
             checkedIndex = bundle.getInt("checkedIndex")
         }
 
-        dialog?.setCanceledOnTouchOutside(false)
+        onCreateViewGeneral()
         return inflater.inflate(R.layout.automation_dialog_choose_trigger, container, false)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        for (t in AutomationPlugin.getTriggerDummyObjects()) {
+        for (t in automationPlugin.getTriggerDummyObjects()) {
             val radioButton = RadioButton(context)
             radioButton.setText(t.friendlyName())
-            radioButton.tag = t.javaClass
+            radioButton.tag = t.javaClass.name
             automation_chooseTriggerRadioGroup.addView(radioButton)
         }
 
         if (checkedIndex != -1)
             (automation_chooseTriggerRadioGroup.getChildAt(checkedIndex) as RadioButton).isChecked = true
-
-        // OK button
-        ok.setOnClickListener {
-            dismiss()
-            instantiateTrigger()?.let {
-                clickListener?.onClick(it)
-            }
-        }
-
-        // Cancel button
-        cancel.setOnClickListener { dismiss() }
     }
 
-    override fun onStart() {
-        super.onStart()
-        dialog?.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+    override fun submit(): Boolean {
+        instantiateTrigger()?.let {
+            clickListener?.onClick(it)
+        }
+        return true
     }
 
     fun setOnClickListener(clickListener: OnClickListener) {
         this.clickListener = clickListener
     }
 
-    override fun onSaveInstanceState(bundle: Bundle) {
-        bundle.putInt("checkedIndex", determineCheckedIndex())
+    override fun onSaveInstanceState(savedInstanceState: Bundle) {
+        super.onSaveInstanceState(savedInstanceState)
+        savedInstanceState.putInt("checkedIndex", determineCheckedIndex())
     }
 
     private fun instantiateTrigger(): Trigger? {
         return getTriggerClass()?.let {
-            it.newInstance() as Trigger
+            val clazz = Class.forName(it).kotlin
+            clazz.primaryConstructor?.call(mainApp) as Trigger
         }
     }
 
-    private fun getTriggerClass(): Class<*>? {
+    private fun getTriggerClass(): String? {
         val radioButtonID = automation_chooseTriggerRadioGroup.checkedRadioButtonId
         val radioButton = automation_chooseTriggerRadioGroup.findViewById<RadioButton>(radioButtonID)
         return radioButton?.let {
-            it.tag as Class<*>
+            it.tag as String
         }
     }
 
@@ -92,5 +88,4 @@ class ChooseTriggerDialog : DialogFragment() {
         }
         return -1
     }
-
 }

@@ -1,7 +1,6 @@
 package info.nightscout.androidaps.interaction.actions;
 
 
-import android.app.Activity;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.os.Bundle;
@@ -18,11 +17,10 @@ import android.widget.TextView;
 import java.text.DecimalFormat;
 
 import info.nightscout.androidaps.R;
+import info.nightscout.androidaps.aaps;
 import info.nightscout.androidaps.data.ListenerService;
 import info.nightscout.androidaps.interaction.utils.PlusMinusEditText;
 import info.nightscout.androidaps.interaction.utils.SafeParse;
-
-import static android.preference.PreferenceManager.getDefaultSharedPreferences;
 
 /**
  * Created by adrian on 09/02/17.
@@ -85,7 +83,7 @@ public class TempTargetActivity extends ViewSelectorActivity {
                     double def = SafeParse.stringToDouble(time.editText.getText().toString());
                     time = new PlusMinusEditText(view, R.id.amountfield, R.id.plusbutton, R.id.minusbutton, def, 0d, 24 * 60d, 5d, new DecimalFormat("0"), false);
                 }
-                 setLabelToPlusMinusView(view, "duration");
+                 setLabelToPlusMinusView(view, aaps.gs(R.string.action_duration));
                  container.addView(view);
                 return view;
 
@@ -105,9 +103,9 @@ public class TempTargetActivity extends ViewSelectorActivity {
                      lowRange = new PlusMinusEditText(view, R.id.amountfield, R.id.plusbutton, R.id.minusbutton, def, 4d, 10d, 0.1d, new DecimalFormat("#0.0"), false);
                  }
                  if(isSingleTarget){
-                     setLabelToPlusMinusView(view, "target");
+                     setLabelToPlusMinusView(view, aaps.gs(R.string.action_target));
                  } else {
-                     setLabelToPlusMinusView(view, "low");
+                     setLabelToPlusMinusView(view, aaps.gs(R.string.action_low));
                  }
                  container.addView(view);
                  return view;
@@ -126,7 +124,7 @@ public class TempTargetActivity extends ViewSelectorActivity {
                      }
                      highRange = new PlusMinusEditText(view, R.id.amountfield, R.id.plusbutton, R.id.minusbutton, def, 4d, 10d, 0.1d, new DecimalFormat("#0.0"), false);
                  }
-                 setLabelToPlusMinusView(view, "high");
+                 setLabelToPlusMinusView(view, aaps.gs(R.string.action_high));
                  container.addView(view);
                  return view;
              }else {

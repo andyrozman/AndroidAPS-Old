@@ -25,8 +25,6 @@ public class Constants {
     public static final int hoursToKeepInDatabase = 72;
     public static final int daysToKeepHistoryInDatabase = 30;
 
-    public static final long keepAliveMsecs = 5 * 60 * 1000L;
-
     // SMS COMMUNICATOR
     public static final long remoteBolusMinDistance = 15 * 60 * 1000L;
 
@@ -78,4 +76,31 @@ public class Constants {
     //Storage [MB]
     public static final long MINIMUM_FREE_SPACE = 200;
 
+    // Overview
+    public static final double LOWMARK = 76.0;
+    public static final double HIGHMARK = 180.0;
+
+    // STATISTICS
+    public static final double STATS_TARGET_LOW_MMOL = 3.9;
+    public static final double STATS_TARGET_HIGH_MMOL = 7.8;
+    public static final double STATS_RANGE_LOW_MMOL = 3.9;
+    public static final double STATS_RANGE_HIGH_MMOL = 10.0;
+
+
+    // One Time Password
+
+    /**
+     * Size of generated key for TOTP Authenticator token, in bits
+     * rfc6238 suggest at least 160 for SHA1 based TOTP, but it ts too weak
+     * with 512 generated QRCode to provision authenticator is too detailed
+     * 256 is chosen as both secure enough and small enough for easy-scannable QRCode
+     */
+    public static final int OTP_GENERATED_KEY_LENGTH_BITS = 256;
+
+    /**
+     * How many old TOTP tokens still accept.
+     * Each token is 30s valid, but copying and SMS transmision of it can take additional seconds,
+     * so we add leeway to still accept given amount of older tokens
+     */
+    public static final int OTP_ACCEPT_OLD_TOKENS_COUNT = 1;
 }

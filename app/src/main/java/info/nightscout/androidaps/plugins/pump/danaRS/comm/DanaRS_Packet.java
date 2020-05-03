@@ -4,17 +4,23 @@ import android.annotation.TargetApi;
 import android.os.Build;
 
 import com.cozmo.danar.util.BleCommandUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
+import info.nightscout.androidaps.logging.StacktraceLoggerWrapper;
+
 public class DanaRS_Packet {
+    private static final Logger log = StacktraceLoggerWrapper.getLogger(DanaRS_Packet.class);
+
     protected static final int TYPE_START = 0;
     protected static final int OPCODE_START = 1;
-    protected static final int DATA_START = 2;
+    public static final int DATA_START = 2;
 
     private boolean received;
-    protected boolean failed;
+    public boolean failed;
     protected int type = BleCommandUtil.DANAR_PACKET__TYPE_RESPONSE; // most of the messages, should be changed for others
     protected int opCode;
 
@@ -73,7 +79,7 @@ public class DanaRS_Packet {
 
             return ret;
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Unhandled exception", e);
         }
         return null;
     }

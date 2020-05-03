@@ -4,10 +4,21 @@
     <string-array name="aps_modeArray">
         <item>@string/closedloop</item>
         <item>@string/openloop</item>
+        <item>@string/lowglucosesuspend</item>
     </string-array>
     <string-array name="aps_modeValues" translatable="false">
         <item>closed</item>
         <item>open</item>
+        <item>lgs</item>
+    </string-array>
+
+    <string-array name="unitsArray">
+        <item>mg/dL</item>
+        <item>mmol/L</item>
+    </string-array>
+    <string-array name="unitsValues" translatable="false">
+        <item>mg/dl</item>
+        <item>mmol</item>
     </string-array>
 
     <string-array name="languagesArray">
@@ -182,6 +193,7 @@
         <item>@string/medtronic_pump_battery_alkaline</item>
         <item>@string/medtronic_pump_battery_lithium</item>
         <item>@string/medtronic_pump_battery_nizn</item>
+        <item>@string/medtronic_pump_battery_nimh</item>
     </string-array>
 
     <string-array name="medtronicBatteryTypeValues">
@@ -189,9 +201,32 @@
         <item>@string/key_medtronic_pump_battery_alkaline</item>
         <item>@string/key_medtronic_pump_battery_lithium</item>
         <item>@string/key_medtronic_pump_battery_nizn</item>
+        <item>@string/key_medtronic_pump_battery_nimh</item>
     </string-array>
 
+    <string-array name="smbMaxMinutes">
+        <item>15</item>
+        <item>30</item>
+        <item>45</item>
+        <item>60</item>
+        <item>75</item>
+        <item>90</item>
+        <item>105</item>
+        <item>120</item>
+    </string-array>
 
-    key_medtronic_bolus_debug
+    <string-array name="protectiontype">
+        <item>@string/noprotection</item>
+        <item>@string/biometric</item>
+        <item>@string/master_password</item>
+        <item>@string/custom_password</item>
+    </string-array>
+
+    <string-array name="protectiontypeValues">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+    </string-array>
 
 </resources>

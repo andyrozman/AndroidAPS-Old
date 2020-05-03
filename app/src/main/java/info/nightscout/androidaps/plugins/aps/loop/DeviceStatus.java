@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import info.nightscout.androidaps.logging.L;
+import info.nightscout.androidaps.logging.StacktraceLoggerWrapper;
 
 /*
 {
@@ -365,7 +366,7 @@ import info.nightscout.androidaps.logging.L;
 */
 
 public class DeviceStatus {
-    private static Logger log = LoggerFactory.getLogger(L.APS);
+    private static Logger log = StacktraceLoggerWrapper.getLogger(L.NSCLIENT);
 
     public String device = null;
     public JSONObject pump = null;
@@ -381,13 +382,11 @@ public class DeviceStatus {
         try {
             if (device != null) record.put("device", device);
             if (pump != null) record.put("pump", pump);
-            if (suggested != null) {
-                JSONObject openaps = new JSONObject();
-                if (enacted != null) openaps.put("enacted", enacted);
-                if (suggested != null) openaps.put("suggested", suggested);
-                if (iob != null) openaps.put("iob", iob);
-                record.put("openaps", openaps);
-            }
+            JSONObject openaps = new JSONObject();
+            if (enacted != null) openaps.put("enacted", enacted);
+            if (suggested != null) openaps.put("suggested", suggested);
+            if (iob != null) openaps.put("iob", iob);
+            record.put("openaps", openaps);
             if (uploaderBattery != 0) record.put("uploaderBattery", uploaderBattery);
             if (created_at != null) record.put("created_at", created_at);
         } catch (JSONException e) {

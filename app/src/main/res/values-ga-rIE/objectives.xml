@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<<<<<<< HEAD
 <resources>
     <string name="key_objectiveuseprofileswitch" translatable="false">ObjectivesProfileSwitchUsed</string>
     <string name="key_objectiveusedisconnect" translatable="false">ObjectivesDisconnectUsed</string>
@@ -12,3 +13,6 @@
     <string name="key_ObjectivespumpStatusIsAvailableInNS" translatable="false">ObjectivespumpStatusIsAvailableInNS</string>
     <string name="key_ObjectivesmanualEnacts" translatable="false">ObjectivesmanualEnacts</string>
 </resources>
+=======
+<resources></resources>
+>>>>>>> master

@@ -4,6 +4,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -12,26 +13,43 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.fragment.app.Fragment
+import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.RecyclerView
-import info.nightscout.androidaps.MainApp
+import dagger.android.support.DaggerFragment
 import info.nightscout.androidaps.R
-import info.nightscout.androidaps.logging.L
-import info.nightscout.androidaps.plugins.bus.RxBus
+import info.nightscout.androidaps.logging.AAPSLogger
+import info.nightscout.androidaps.plugins.bus.RxBusWrapper
 import info.nightscout.androidaps.plugins.constraints.objectives.activities.ObjectivesExamDialog
+import info.nightscout.androidaps.plugins.constraints.objectives.dialogs.NtpProgressDialog
+import info.nightscout.androidaps.plugins.constraints.objectives.events.EventNtpStatus
 import info.nightscout.androidaps.plugins.constraints.objectives.events.EventObjectivesUpdateGui
 import info.nightscout.androidaps.plugins.constraints.objectives.objectives.Objective.ExamTask
-import info.nightscout.androidaps.receivers.NetworkChangeReceiver
-import info.nightscout.androidaps.utils.*
+import info.nightscout.androidaps.receivers.ReceiverStatusStore
+import info.nightscout.androidaps.setupwizard.events.EventSWUpdate
+import info.nightscout.androidaps.utils.DateUtil
+import info.nightscout.androidaps.utils.FabricPrivacy
+import info.nightscout.androidaps.utils.HtmlHelper
+import info.nightscout.androidaps.utils.alertDialogs.OKDialog
+import info.nightscout.androidaps.utils.SntpClient
+import info.nightscout.androidaps.utils.extensions.plusAssign
+import info.nightscout.androidaps.utils.resources.ResourceHelper
+import info.nightscout.androidaps.utils.sharedPreferences.SP
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import kotlinx.android.synthetic.main.objectives_fragment.*
-import org.slf4j.LoggerFactory
+import javax.inject.Inject
 
-class ObjectivesFragment : Fragment() {
-    private val log = LoggerFactory.getLogger(L.CONSTRAINTS)
+class ObjectivesFragment : DaggerFragment() {
+    @Inject lateinit var rxBus: RxBusWrapper
+    @Inject lateinit var aapsLogger: AAPSLogger
+    @Inject lateinit var sp: SP
+    @Inject lateinit var resourceHelper: ResourceHelper
+    @Inject lateinit var fabricPrivacy: FabricPrivacy
+    @Inject lateinit var objectivesPlugin: ObjectivesPlugin
+    @Inject lateinit var receiverStatusStore: ReceiverStatusStore
+
     private val objectivesAdapter = ObjectivesAdapter()
     private val handler = Handler(Looper.getMainLooper())
 
@@ -55,7 +73,7 @@ class ObjectivesFragment : Fragment() {
         objectives_recyclerview.adapter = objectivesAdapter
         objectives_fake.setOnClickListener { updateGUI() }
         objectives_reset.setOnClickListener {
-            ObjectivesPlugin.reset()
+            objectivesPlugin.reset()
             objectives_recyclerview.adapter?.notifyDataSetChanged()
             scrollToCurrentObjective()
         }
@@ -66,15 +84,13 @@ class ObjectivesFragment : Fragment() {
     @Synchronized
     override fun onResume() {
         super.onResume()
-        disposable.add(RxBus
-                .toObservable(EventObjectivesUpdateGui::class.java)
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe({
-                    objectives_recyclerview.adapter?.notifyDataSetChanged()
-                }, {
-                    FabricPrivacy.logException(it)
-                })
-        )
+        disposable += rxBus
+            .toObservable(EventObjectivesUpdateGui::class.java)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
+                objectives_recyclerview.adapter?.notifyDataSetChanged()
+            }, { fabricPrivacy.logException(it) }
+            )
     }
 
     @Synchronized
@@ -91,7 +107,7 @@ class ObjectivesFragment : Fragment() {
 
     private fun startUpdateTimer() {
         handler.removeCallbacks(objectiveUpdater)
-        for (objective in ObjectivesPlugin.objectives) {
+        for (objective in objectivesPlugin.objectives) {
             if (objective.isStarted && !objective.isAccomplished) {
                 val timeTillNextMinute = (System.currentTimeMillis() - objective.startedOn) % (60 * 1000)
                 handler.postDelayed(objectiveUpdater, timeTillNextMinute)
@@ -101,21 +117,20 @@ class ObjectivesFragment : Fragment() {
     }
 
     private fun scrollToCurrentObjective() {
-        for (i in 0 until ObjectivesPlugin.objectives.size) {
-            val objective = ObjectivesPlugin.objectives[i]
-            if (!objective.isStarted || !objective.isAccomplished) {
-                val smoothScroller = object : LinearSmoothScroller(context!!) {
-                    override fun getVerticalSnapPreference(): Int {
-                        return SNAP_TO_START
+        activity?.runOnUiThread {
+            for (i in 0 until objectivesPlugin.objectives.size) {
+                val objective = objectivesPlugin.objectives[i]
+                if (!objective.isStarted || !objective.isAccomplished) {
+                    context?.let {
+                        val smoothScroller = object : LinearSmoothScroller(it) {
+                            override fun getVerticalSnapPreference(): Int = SNAP_TO_START
+                            override fun calculateTimeForScrolling(dx: Int): Int = super.calculateTimeForScrolling(dx) * 4
+                        }
+                        smoothScroller.targetPosition = i
+                        objectives_recyclerview.layoutManager?.startSmoothScroll(smoothScroller)
                     }
-
-                    override fun calculateTimeForScrolling(dx: Int): Int {
-                        return super.calculateTimeForScrolling(dx) * 4
-                    }
+                    break
                 }
-                smoothScroller.targetPosition = i
-                objectives_recyclerview.layoutManager?.startSmoothScroll(smoothScroller)
-                break
             }
         }
     }
@@ -127,17 +142,16 @@ class ObjectivesFragment : Fragment() {
         }
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            val objective = ObjectivesPlugin.objectives[position]
-            holder.title.text = MainApp.gs(R.string.nth_objective, position + 1)
-            holder.revert.visibility = View.GONE
+            val objective = objectivesPlugin.objectives[position]
+            holder.title.text = resourceHelper.gs(R.string.nth_objective, position + 1)
             if (objective.objective != 0) {
                 holder.objective.visibility = View.VISIBLE
-                holder.objective.text = MainApp.gs(objective.objective)
+                holder.objective.text = resourceHelper.gs(objective.objective)
             } else
                 holder.objective.visibility = View.GONE
             if (objective.gate != 0) {
                 holder.gate.visibility = View.VISIBLE
-                holder.gate.text = MainApp.gs(objective.gate)
+                holder.gate.text = resourceHelper.gs(objective.gate)
             } else
                 holder.gate.visibility = View.GONE
             if (!objective.isStarted) {
@@ -145,7 +159,9 @@ class ObjectivesFragment : Fragment() {
                 holder.verify.visibility = View.GONE
                 holder.progress.visibility = View.GONE
                 holder.accomplished.visibility = View.GONE
-                if (position == 0 || ObjectivesPlugin.objectives[position - 1].isAccomplished)
+                holder.unFinish.visibility = View.GONE
+                holder.unStart.visibility = View.GONE
+                if (position == 0 || objectivesPlugin.allPriorAccomplished(position))
                     holder.start.visibility = View.VISIBLE
                 else
                     holder.start.visibility = View.GONE
@@ -155,22 +171,24 @@ class ObjectivesFragment : Fragment() {
                 holder.progress.visibility = View.GONE
                 holder.start.visibility = View.GONE
                 holder.accomplished.visibility = View.VISIBLE
+                holder.unFinish.visibility = View.VISIBLE
+                holder.unStart.visibility = View.GONE
             } else if (objective.isStarted) {
                 holder.gate.setTextColor(-0x1)
                 holder.verify.visibility = View.VISIBLE
                 holder.verify.isEnabled = objective.isCompleted || objectives_fake.isChecked
                 holder.start.visibility = View.GONE
                 holder.accomplished.visibility = View.GONE
-                if (objective.isRevertable) {
-                    holder.revert.visibility = View.VISIBLE
-                }
+                holder.unFinish.visibility = View.GONE
+                holder.unStart.visibility = View.VISIBLE
                 holder.progress.visibility = View.VISIBLE
                 holder.progress.removeAllViews()
                 for (task in objective.tasks) {
                     if (task.shouldBeIgnored()) continue
                     // name
                     val name = TextView(holder.progress.context)
-                    name.text = MainApp.gs(task.task) + ":"
+                    @Suppress("SetTextlI8n")
+                    name.text = resourceHelper.gs(task.task) + ":"
                     name.setTextColor(-0x1)
                     holder.progress.addView(name, LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                     // hint
@@ -203,83 +221,102 @@ class ObjectivesFragment : Fragment() {
                     holder.progress.addView(separator, LinearLayout.LayoutParams.MATCH_PARENT, 2)
                 }
             }
-            holder.accomplished.text = MainApp.gs(R.string.accomplished, DateUtil.dateAndTimeString(objective.accomplishedOn))
+            holder.accomplished.text = resourceHelper.gs(R.string.accomplished, DateUtil.dateAndTimeString(objective.accomplishedOn))
             holder.accomplished.setTextColor(-0x3e3e3f)
             holder.verify.setOnClickListener {
-                holder.verify.visibility = View.INVISIBLE
-                NetworkChangeReceiver.fetch()
+                receiverStatusStore.updateNetworkStatus()
                 if (objectives_fake.isChecked) {
                     objective.accomplishedOn = DateUtil.now()
                     scrollToCurrentObjective()
                     startUpdateTimer()
-                    RxBus.send(EventObjectivesUpdateGui())
-                } else
-                    SntpClient.ntpTime(object : SntpClient.Callback() {
-                        override fun run() {
-                            activity?.runOnUiThread {
-                                holder.verify.visibility = View.VISIBLE
-                                log.debug("NTP time: $time System time: ${DateUtil.now()}")
+                    rxBus.send(EventObjectivesUpdateGui())
+                    rxBus.send(EventSWUpdate(false))
+                } else {
+                    // move out of UI thread
+                    Thread {
+                        NtpProgressDialog().show((context as AppCompatActivity).supportFragmentManager, "NtpCheck")
+                        rxBus.send(EventNtpStatus(resourceHelper.gs(R.string.timedetection), 0))
+                        SntpClient.ntpTime(object : SntpClient.Callback() {
+                            override fun run() {
+                                aapsLogger.debug("NTP time: $time System time: ${DateUtil.now()}")
+                                SystemClock.sleep(300)
                                 if (!networkConnected) {
-                                    ToastUtils.showToastInUiThread(context, R.string.notconnected)
+                                    rxBus.send(EventNtpStatus(resourceHelper.gs(R.string.notconnected), 99))
                                 } else if (success) {
                                     if (objective.isCompleted(time)) {
                                         objective.accomplishedOn = time
+                                        rxBus.send(EventNtpStatus(resourceHelper.gs(R.string.success), 100))
+                                        SystemClock.sleep(1000)
+                                        rxBus.send(EventObjectivesUpdateGui())
+                                        rxBus.send(EventSWUpdate(false))
+                                        SystemClock.sleep(100)
                                         scrollToCurrentObjective()
-                                        startUpdateTimer()
-                                        RxBus.send(EventObjectivesUpdateGui())
                                     } else {
-                                        ToastUtils.showToastInUiThread(context, R.string.requirementnotmet)
+                                        rxBus.send(EventNtpStatus(resourceHelper.gs(R.string.requirementnotmet), 99))
                                     }
                                 } else {
-                                    ToastUtils.showToastInUiThread(context, R.string.failedretrievetime)
+                                    rxBus.send(EventNtpStatus(resourceHelper.gs(R.string.failedretrievetime), 99))
                                 }
                             }
-                        }
-                    }, NetworkChangeReceiver.isConnected())
+                        }, receiverStatusStore.isConnected)
+                    }.start()
+                }
             }
             holder.start.setOnClickListener {
-                holder.start.visibility = View.INVISIBLE
-                NetworkChangeReceiver.fetch()
+                receiverStatusStore.updateNetworkStatus()
                 if (objectives_fake.isChecked) {
                     objective.startedOn = DateUtil.now()
                     scrollToCurrentObjective()
                     startUpdateTimer()
-                    RxBus.send(EventObjectivesUpdateGui())
+                    rxBus.send(EventObjectivesUpdateGui())
+                    rxBus.send(EventSWUpdate(false))
                 } else
-                    SntpClient.ntpTime(object : SntpClient.Callback() {
-                        override fun run() {
-                            activity?.runOnUiThread {
-                                holder.start.visibility = View.VISIBLE
-                                log.debug("NTP time: $time System time: ${DateUtil.now()}")
+                // move out of UI thread
+                    Thread {
+                        NtpProgressDialog().show((context as AppCompatActivity).supportFragmentManager, "NtpCheck")
+                        rxBus.send(EventNtpStatus(resourceHelper.gs(R.string.timedetection), 0))
+                        SntpClient.ntpTime(object : SntpClient.Callback() {
+                            override fun run() {
+                                aapsLogger.debug("NTP time: $time System time: ${DateUtil.now()}")
+                                SystemClock.sleep(300)
                                 if (!networkConnected) {
-                                    ToastUtils.showToastInUiThread(context, R.string.notconnected)
+                                    rxBus.send(EventNtpStatus(resourceHelper.gs(R.string.notconnected), 99))
                                 } else if (success) {
                                     objective.startedOn = time
+                                    rxBus.send(EventNtpStatus(resourceHelper.gs(R.string.success), 100))
+                                    SystemClock.sleep(1000)
+                                    rxBus.send(EventObjectivesUpdateGui())
+                                    rxBus.send(EventSWUpdate(false))
+                                    SystemClock.sleep(100)
                                     scrollToCurrentObjective()
-                                    startUpdateTimer()
-                                    RxBus.send(EventObjectivesUpdateGui())
                                 } else {
-                                    ToastUtils.showToastInUiThread(context, R.string.failedretrievetime)
+                                    rxBus.send(EventNtpStatus(resourceHelper.gs(R.string.failedretrievetime), 99))
                                 }
                             }
-                        }
-                    }, NetworkChangeReceiver.isConnected())
+                        }, receiverStatusStore.isConnected)
+                    }.start()
             }
-            holder.revert.setOnClickListener {
-                objective.accomplishedOn = 0
-                objective.startedOn = 0
-                if (position > 0) {
-                    val prevObj = ObjectivesPlugin.objectives[position - 1]
-                    prevObj.accomplishedOn = 0
+            holder.unStart.setOnClickListener {
+                activity?.let { activity ->
+                    OKDialog.showConfirmation(activity, resourceHelper.gs(R.string.objectives), resourceHelper.gs(R.string.doyouwantresetstart), Runnable {
+                        objective.startedOn = 0
+                        scrollToCurrentObjective()
+                        rxBus.send(EventObjectivesUpdateGui())
+                        rxBus.send(EventSWUpdate(false))
+                    })
                 }
-                scrollToCurrentObjective()
-                RxBus.send(EventObjectivesUpdateGui())
             }
-            if (objective.hasSpecialInput && !objective.isAccomplished && objective.isStarted) {
+            holder.unFinish.setOnClickListener {
+                objective.accomplishedOn = 0
+                scrollToCurrentObjective()
+                rxBus.send(EventObjectivesUpdateGui())
+                rxBus.send(EventSWUpdate(false))
+            }
+            if (objective.hasSpecialInput && !objective.isAccomplished && objective.isStarted && objective.specialActionEnabled()) {
                 // generate random request code if none exists
-                val request = SP.getString(R.string.key_objectives_request_code, String.format("%1$05d", (Math.random() * 99999).toInt()))
-                SP.putString(R.string.key_objectives_request_code, request)
-                holder.requestCode.text = MainApp.gs(R.string.requestcode, request)
+                val request = sp.getString(R.string.key_objectives_request_code, String.format("%1$05d", (Math.random() * 99999).toInt()))
+                sp.putString(R.string.key_objectives_request_code, request)
+                holder.requestCode.text = resourceHelper.gs(R.string.requestcode, request)
                 holder.requestCode.visibility = View.VISIBLE
                 holder.enterButton.visibility = View.VISIBLE
                 holder.input.visibility = View.VISIBLE
@@ -287,7 +324,7 @@ class ObjectivesFragment : Fragment() {
                 holder.enterButton.setOnClickListener {
                     val input = holder.input.text.toString()
                     objective.specialAction(activity, input)
-                    RxBus.send(EventObjectivesUpdateGui())
+                    rxBus.send(EventObjectivesUpdateGui())
                 }
             } else {
                 holder.enterButton.visibility = View.GONE
@@ -297,9 +334,8 @@ class ObjectivesFragment : Fragment() {
             }
         }
 
-
         override fun getItemCount(): Int {
-            return ObjectivesPlugin.objectives.size
+            return objectivesPlugin.objectives.size
         }
 
         inner class ViewHolder internal constructor(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -310,7 +346,8 @@ class ObjectivesFragment : Fragment() {
             val progress: LinearLayout = itemView.findViewById(R.id.objective_progress)
             val verify: Button = itemView.findViewById(R.id.objective_verify)
             val start: Button = itemView.findViewById(R.id.objective_start)
-            val revert: Button = itemView.findViewById(R.id.objective_back)
+            val unFinish: Button = itemView.findViewById(R.id.objective_unfinish)
+            val unStart: Button = itemView.findViewById(R.id.objective_unstart)
             val inputHint: TextView = itemView.findViewById(R.id.objective_inputhint)
             val input: EditText = itemView.findViewById(R.id.objective_input)
             val enterButton: Button = itemView.findViewById(R.id.objective_enterbutton)

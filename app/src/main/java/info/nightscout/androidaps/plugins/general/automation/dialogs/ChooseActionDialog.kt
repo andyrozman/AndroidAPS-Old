@@ -5,19 +5,24 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.RadioButton
-import androidx.fragment.app.DialogFragment
+import info.nightscout.androidaps.MainApp
 import info.nightscout.androidaps.R
-import info.nightscout.androidaps.plugins.bus.RxBus
+import info.nightscout.androidaps.dialogs.DialogFragmentWithDate
+import info.nightscout.androidaps.plugins.bus.RxBusWrapper
 import info.nightscout.androidaps.plugins.general.automation.AutomationPlugin
 import info.nightscout.androidaps.plugins.general.automation.actions.Action
 import info.nightscout.androidaps.plugins.general.automation.events.EventAutomationAddAction
 import info.nightscout.androidaps.plugins.general.automation.events.EventAutomationUpdateGui
 import kotlinx.android.synthetic.main.automation_dialog_choose_action.*
-import kotlinx.android.synthetic.main.okcancel.*
+import javax.inject.Inject
+import kotlin.reflect.full.primaryConstructor
 
-class ChooseActionDialog : DialogFragment() {
+class ChooseActionDialog : DialogFragmentWithDate() {
+    @Inject lateinit var automationPlugin: AutomationPlugin
+    @Inject lateinit var rxBus: RxBusWrapper
+    @Inject lateinit var mainApp : MainApp
 
-    var checkedIndex = -1
+    private var checkedIndex = -1
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
                               savedInstanceState: Bundle?): View? {
@@ -26,56 +31,49 @@ class ChooseActionDialog : DialogFragment() {
             checkedIndex = bundle.getInt("checkedIndex")
         }
 
-        dialog?.setCanceledOnTouchOutside(false)
+        onCreateViewGeneral()
         return inflater.inflate(R.layout.automation_dialog_choose_action, container, false)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        for (a in AutomationPlugin.getActionDummyObjects()) {
+        for (a in automationPlugin.getActionDummyObjects()) {
             val radioButton = RadioButton(context)
             radioButton.setText(a.friendlyName())
-            radioButton.tag = a.javaClass
+            radioButton.tag = a.javaClass.name
             automation_radioGroup.addView(radioButton)
         }
 
         if (checkedIndex != -1)
             (automation_radioGroup.getChildAt(checkedIndex) as RadioButton).isChecked = true
+    }
 
-        // OK button
-        ok.setOnClickListener {
-            dismiss()
-            instantiateAction()?.let {
-                RxBus.send(EventAutomationAddAction(it))
-                RxBus.send(EventAutomationUpdateGui())
-            }
+    override fun submit(): Boolean {
+        instantiateAction()?.let {
+            rxBus.send(EventAutomationAddAction(it))
+            rxBus.send(EventAutomationUpdateGui())
         }
-
-        // Cancel button
-        cancel.setOnClickListener { dismiss() }
+        return true
     }
 
-    override fun onStart() {
-        super.onStart()
-        dialog?.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-    }
-
-    override fun onSaveInstanceState(bundle: Bundle) {
-        bundle.putInt("checkedIndex", determineCheckedIndex())
+    override fun onSaveInstanceState(savedInstanceState: Bundle) {
+        super.onSaveInstanceState(savedInstanceState)
+        savedInstanceState.putInt("checkedIndex", determineCheckedIndex())
     }
 
     private fun instantiateAction(): Action? {
         return getActionClass()?.let {
-            it.newInstance() as Action
+            val clazz = Class.forName(it).kotlin
+            clazz.primaryConstructor?.call(mainApp) as Action
         }
     }
 
-    private fun getActionClass(): Class<*>? {
+    private fun getActionClass(): String? {
         val radioButtonID = automation_radioGroup.checkedRadioButtonId
         val radioButton = automation_radioGroup.findViewById<RadioButton>(radioButtonID)
         return radioButton?.let {
-            it.tag as Class<*>
+            it.tag as String
         }
     }
 
@@ -86,5 +84,4 @@ class ChooseActionDialog : DialogFragment() {
         }
         return -1
     }
-
 }

@@ -13,6 +13,7 @@ public class PluginDescription {
     int preferencesId = -1;
     public boolean enableByDefault = false;
     public boolean visibleByDefault = false;
+    boolean defaultPlugin = false;
 
     public PluginDescription mainType(PluginType mainType) {
         this.mainType = mainType;
@@ -29,8 +30,8 @@ public class PluginDescription {
         return this;
     }
 
-     public PluginDescription alwaysVisible(boolean alwayVisible) {
-        this.alwaysVisible = alwayVisible;
+     public PluginDescription alwaysVisible(boolean alwaysVisible) {
+        this.alwaysVisible = alwaysVisible;
         return this;
     }
 
@@ -71,6 +72,11 @@ public class PluginDescription {
 
     public PluginDescription description(int description) {
         this.description = description;
+        return this;
+    }
+
+    public PluginDescription setDefault() {
+        defaultPlugin = true;
         return this;
     }
 

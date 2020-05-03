@@ -5,7 +5,6 @@ import android.os.Handler;
 import android.os.Message;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.text.method.DigitsKeyListener;
 import android.util.AttributeSet;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -15,15 +14,11 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.text.NumberFormat;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import info.nightscout.androidaps.MainApp;
 import info.nightscout.androidaps.R;
 
 /**
@@ -31,7 +26,6 @@ import info.nightscout.androidaps.R;
  */
 public class NumberPicker extends LinearLayout implements View.OnKeyListener,
         View.OnTouchListener, View.OnClickListener {
-    private static Logger log = LoggerFactory.getLogger(NumberPicker.class);
 
     public interface OnValueChangedListener {
         void onValueChanged(double value);
@@ -86,6 +80,7 @@ public class NumberPicker extends LinearLayout implements View.OnKeyListener,
 
     public NumberPicker(Context context) {
         super(context, null);
+        this.initialize(context);
     }
 
     public NumberPicker(Context context, AttributeSet attrs) {
@@ -94,9 +89,13 @@ public class NumberPicker extends LinearLayout implements View.OnKeyListener,
         this.initialize(context);
     }
 
+    protected void inflate(Context context) {
+        LayoutInflater.from(context).inflate(R.layout.number_picker_layout, this, true);
+    }
+
     private void initialize(Context context) {
         // set layout view
-        LayoutInflater.from(context).inflate(R.layout.number_picker_layout, this, true);
+        inflate(context);
 
         // init ui components
         minusButton = findViewById(R.id.decrement);
@@ -149,6 +148,11 @@ public class NumberPicker extends LinearLayout implements View.OnKeyListener,
         });
     }
 
+    @Override
+    public void setTag(Object tag) {
+        editText.setTag(tag);
+    }
+
     public void setOnValueChangedListener(OnValueChangedListener onValueChangedListener) {
         mOnValueChangedListener = onValueChangedListener;
     }
@@ -161,14 +165,14 @@ public class NumberPicker extends LinearLayout implements View.OnKeyListener,
                 value = SafeParse.stringToDouble(editText.getText().toString());
                 if (value > maxValue) {
                     value = maxValue;
-                    ToastUtils.showToastInUiThread(MainApp.instance().getApplicationContext(), MainApp.gs(R.string.youareonallowedlimit));
+                    ToastUtils.showToastInUiThread(getContext(), getContext().getString(R.string.youareonallowedlimit));
                     updateEditText();
                     if (okButton != null)
                         okButton.setVisibility(VISIBLE);
                 }
                 if (value < minValue) {
                     value = minValue;
-                    ToastUtils.showToastInUiThread(MainApp.instance().getApplicationContext(), MainApp.gs(R.string.youareonallowedlimit));
+                    ToastUtils.showToastInUiThread(getContext(), getContext().getString(R.string.youareonallowedlimit));
                     updateEditText();
                     if (okButton != null)
                         okButton.setVisibility(VISIBLE);
@@ -233,7 +237,7 @@ public class NumberPicker extends LinearLayout implements View.OnKeyListener,
         if (value > maxValue) {
             value = maxValue;
             callValueChangedListener();
-            ToastUtils.showToastInUiThread(MainApp.instance().getApplicationContext(), MainApp.gs(R.string.youareonallowedlimit));
+            ToastUtils.showToastInUiThread(getContext(), getContext().getString(R.string.youareonallowedlimit));
             stopUpdating();
         }
         updateEditText();
@@ -244,7 +248,7 @@ public class NumberPicker extends LinearLayout implements View.OnKeyListener,
         if (value < minValue) {
             value = minValue;
             callValueChangedListener();
-            ToastUtils.showToastInUiThread(MainApp.instance().getApplicationContext(), MainApp.gs(R.string.youareonallowedlimit));
+            ToastUtils.showToastInUiThread(getContext(), getContext().getString(R.string.youareonallowedlimit));
             stopUpdating();
         }
         updateEditText();
@@ -264,7 +268,7 @@ public class NumberPicker extends LinearLayout implements View.OnKeyListener,
 
     private void startUpdating(boolean inc) {
         if (mUpdater != null) {
-            log.debug("Another executor is still active");
+            //log.debug("Another executor is still active");
             return;
         }
         mUpdater = Executors.newSingleThreadScheduledExecutor();

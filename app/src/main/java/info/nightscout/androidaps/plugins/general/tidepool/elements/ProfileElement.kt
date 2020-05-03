@@ -9,7 +9,7 @@ import info.nightscout.androidaps.utils.InstanceId
 import java.util.*
 import kotlin.collections.ArrayList
 
-class ProfileElement private constructor(ps: ProfileSwitch)
+class ProfileElement(ps: ProfileSwitch, serialNumber: String)
     : BaseElement(ps.date, UUID.nameUUIDFromBytes(("AAPS-profile" + ps.date).toByteArray()).toString()) {
 
     @Expose
@@ -25,11 +25,9 @@ class ProfileElement private constructor(ps: ProfileSwitch)
     @Expose
     internal var insulinSensitivities: IsfProfile = IsfProfile()
     @Expose
-    internal var deviceId: String = TidepoolUploader.PUMPTYPE + ":" + (ConfigBuilderPlugin.getPlugin().activePump?.serialNumber()
-            ?: InstanceId.instanceId())
+    internal var deviceId: String = TidepoolUploader.PUMP_TYPE + ":" + serialNumber
     @Expose
-    internal var deviceSerialNumber: String = ConfigBuilderPlugin.getPlugin().activePump?.serialNumber()
-            ?: InstanceId.instanceId()
+    internal var deviceSerialNumber: String = serialNumber
     @Expose
     internal var clockDriftOffset: Long = 0
     @Expose
@@ -41,12 +39,12 @@ class ProfileElement private constructor(ps: ProfileSwitch)
         checkNotNull(profile)
         for (br in profile.basalValues)
             basalSchedules.Normal.add(BasalRate(br.timeAsSeconds * 1000, br.value))
-        for (target in profile.singleTargets)
-            bgTargets.Normal.add(Target(target.timeAsSeconds * 1000, Profile.toMgdl(target.value, profile.units)))
+        for (target in profile.singleTargetsMgdl)
+            bgTargets.Normal.add(Target(target.timeAsSeconds * 1000, target.value))
         for (ic in profile.ics)
             carbRatios.Normal.add(Ratio(ic.timeAsSeconds * 1000, ic.value))
-        for (isf in profile.isfs)
-            insulinSensitivities.Normal.add(Ratio(isf.timeAsSeconds * 1000, Profile.toMgdl(isf.value, profile.units)))
+        for (isf in profile.isfsMgdl)
+            insulinSensitivities.Normal.add(Ratio(isf.timeAsSeconds * 1000, isf.value))
     }
 
     inner class BasalProfile internal constructor(
@@ -96,16 +94,6 @@ class ProfileElement private constructor(ps: ProfileSwitch)
             @field:Expose
             internal var amount: Double
     )
-
-    companion object {
-        @JvmStatic
-        fun newInstanceOrNull(ps: ProfileSwitch): ProfileElement? = try {
-            ProfileElement(ps)
-        } catch (e: Throwable) {
-            null
-        }
-    }
-
 }
 
 

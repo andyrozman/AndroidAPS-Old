@@ -1,28 +1,38 @@
 package info.nightscout.androidaps.db;
 
+import androidx.annotation.NonNull;
+
 import com.j256.ormlite.field.DatabaseField;
 import com.j256.ormlite.table.DatabaseTable;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Date;
+import java.util.List;
 import java.util.Objects;
 
+import javax.inject.Inject;
+
+import dagger.android.HasAndroidInjector;
 import info.nightscout.androidaps.Constants;
 import info.nightscout.androidaps.MainApp;
 import info.nightscout.androidaps.R;
-import info.nightscout.androidaps.logging.L;
-import info.nightscout.androidaps.plugins.configBuilder.ProfileFunctions;
+import info.nightscout.androidaps.logging.AAPSLogger;
+import info.nightscout.androidaps.logging.LTag;
+import info.nightscout.androidaps.plugins.configBuilder.ProfileFunction;
 import info.nightscout.androidaps.plugins.general.nsclient.data.NSSgv;
-import info.nightscout.androidaps.plugins.general.overview.OverviewPlugin;
 import info.nightscout.androidaps.plugins.general.overview.graphExtensions.DataPointWithLabelInterface;
 import info.nightscout.androidaps.plugins.general.overview.graphExtensions.PointsWithLabelGraphSeries;
+import info.nightscout.androidaps.utils.DateUtil;
 import info.nightscout.androidaps.utils.DecimalFormatter;
+import info.nightscout.androidaps.utils.DefaultValueHelper;
+import info.nightscout.androidaps.utils.T;
+import info.nightscout.androidaps.utils.resources.ResourceHelper;
 
 @DatabaseTable(tableName = DatabaseHelper.DATABASE_BGREADINGS)
 public class BgReading implements DataPointWithLabelInterface {
-    private static Logger log = LoggerFactory.getLogger(L.DATABASE);
+    @Inject public AAPSLogger aapsLogger;
+    @Inject public DefaultValueHelper defaultValueHelper;
+    @Inject public ProfileFunction profileFunction;
+    @Inject public ResourceHelper resourceHelper;
 
     @DatabaseField(id = true)
     public long date;
@@ -49,6 +59,11 @@ public class BgReading implements DataPointWithLabelInterface {
     public boolean isZTPrediction = false; // true when drawing predictions as bg points (ZT)
 
     public BgReading() {
+        MainApp.instance().androidInjector().inject(this);
+    }
+
+    public BgReading(HasAndroidInjector injector) {
+        injector.androidInjector().inject(this);
     }
 
     public BgReading(NSSgv sgv) {
@@ -73,9 +88,10 @@ public class BgReading implements DataPointWithLabelInterface {
 
     public String directionToSymbol() {
         String symbol = "";
-        if (direction == null) {
-            symbol = "??";
-        } else if (direction.compareTo("DoubleDown") == 0) {
+        if (direction == null)
+            direction = calculateDirection();
+
+        if (direction.compareTo("DoubleDown") == 0) {
             symbol = "\u21ca";
         } else if (direction.compareTo("SingleDown") == 0) {
             symbol = "\u2193";
@@ -95,26 +111,21 @@ public class BgReading implements DataPointWithLabelInterface {
         return symbol;
     }
 
-    public static boolean isSlopeNameInvalid(String direction) {
-        if (direction.compareTo("NOT_COMPUTABLE") == 0 ||
+    private static boolean isSlopeNameInvalid(String direction) {
+        return direction.compareTo("NOT_COMPUTABLE") == 0 ||
                 direction.compareTo("NOT COMPUTABLE") == 0 ||
                 direction.compareTo("OUT_OF_RANGE") == 0 ||
                 direction.compareTo("OUT OF RANGE") == 0 ||
                 direction.compareTo("NONE") == 0 ||
-                direction.compareTo("NotComputable") == 0
-                ) {
-            return true;
-        } else {
-            return false;
-        }
+                direction.compareTo("NotComputable") == 0;
     }
 
 
-    @Override
+    @NonNull @Override
     public String toString() {
         return "BgReading{" +
                 "date=" + date +
-                ", date=" + new Date(date).toLocaleString() +
+                ", date=" + DateUtil.dateAndTimeString(date) +
                 ", value=" + value +
                 ", direction=" + direction +
                 ", raw=" + raw +
@@ -123,7 +134,7 @@ public class BgReading implements DataPointWithLabelInterface {
 
     public boolean isDataChanging(BgReading other) {
         if (date != other.date) {
-            log.error("Comparing different");
+            aapsLogger.debug(LTag.GLUCOSE, "Comparing different");
             return false;
         }
         if (value != other.value)
@@ -133,7 +144,7 @@ public class BgReading implements DataPointWithLabelInterface {
 
     public boolean isEqual(BgReading other) {
         if (date != other.date) {
-            log.error("Comparing different");
+            aapsLogger.debug(LTag.GLUCOSE, "Comparing different");
             return false;
         }
         if (value != other.value)
@@ -149,7 +160,7 @@ public class BgReading implements DataPointWithLabelInterface {
 
     public void copyFrom(BgReading other) {
         if (date != other.date) {
-            log.error("Copying different");
+            aapsLogger.error(LTag.GLUCOSE, "Copying different");
             return;
         }
         value = other.value;
@@ -181,8 +192,7 @@ public class BgReading implements DataPointWithLabelInterface {
 
     @Override
     public double getY() {
-        String units = ProfileFunctions.getInstance().getProfileUnits();
-        return valueToUnits(units);
+        return valueToUnits(profileFunction.getUnits());
     }
 
     @Override
@@ -215,30 +225,30 @@ public class BgReading implements DataPointWithLabelInterface {
 
     @Override
     public int getColor() {
-        String units = ProfileFunctions.getInstance().getProfileUnits();
-        Double lowLine = OverviewPlugin.INSTANCE.determineLowLine(units);
-        Double highLine = OverviewPlugin.INSTANCE.determineHighLine(units);
-        int color = MainApp.gc(R.color.inrange);
+        String units = profileFunction.getUnits();
+        Double lowLine = defaultValueHelper.determineLowLine();
+        Double highLine = defaultValueHelper.determineHighLine();
+        int color = resourceHelper.gc(R.color.inrange);
         if (isPrediction())
             return getPredectionColor();
         else if (valueToUnits(units) < lowLine)
-            color = MainApp.gc(R.color.low);
+            color = resourceHelper.gc(R.color.low);
         else if (valueToUnits(units) > highLine)
-            color = MainApp.gc(R.color.high);
+            color = resourceHelper.gc(R.color.high);
         return color;
     }
 
     public int getPredectionColor() {
         if (isIOBPrediction)
-            return MainApp.gc(R.color.iob);
+            return resourceHelper.gc(R.color.iob);
         if (isCOBPrediction)
-            return MainApp.gc(R.color.cob);
+            return resourceHelper.gc(R.color.cob);
         if (isaCOBPrediction)
-            return 0x80FFFFFF & MainApp.gc(R.color.cob);
+            return 0x80FFFFFF & resourceHelper.gc(R.color.cob);
         if (isUAMPrediction)
-            return MainApp.gc(R.color.uam);
+            return resourceHelper.gc(R.color.uam);
         if (isZTPrediction)
-            return MainApp.gc(R.color.zt);
+            return resourceHelper.gc(R.color.zt);
         return R.color.mdtp_white;
     }
 
@@ -246,4 +256,51 @@ public class BgReading implements DataPointWithLabelInterface {
         return isaCOBPrediction || isCOBPrediction || isIOBPrediction || isUAMPrediction || isZTPrediction;
     }
 
+
+    // Copied from xDrip+
+    String calculateDirection() {
+        // Rework to get bgreaings from internal DB and calculate on that base
+
+        List<BgReading> bgReadingsList = MainApp.getDbHelper().getAllBgreadingsDataFromTime(this.date - T.mins(10).msecs(), false);
+        if (bgReadingsList == null || bgReadingsList.size() < 2)
+            return "NONE";
+        BgReading current = bgReadingsList.get(1);
+        BgReading previous = bgReadingsList.get(0);
+
+        if (bgReadingsList.get(1).date < bgReadingsList.get(0).date) {
+            current = bgReadingsList.get(0);
+            previous = bgReadingsList.get(1);
+        }
+
+        double slope;
+
+        // Avoid division by 0
+        if (current.date == previous.date)
+            slope = 0;
+        else
+            slope = (previous.value - current.value) / (previous.date - current.date);
+
+        aapsLogger.error(LTag.GLUCOSE, "Slope is :" + slope + " delta " + (previous.value - current.value) + " date difference " + (current.date - previous.date));
+
+        double slope_by_minute = slope * 60000;
+        String arrow = "NONE";
+
+        if (slope_by_minute <= (-3.5)) {
+            arrow = "DoubleDown";
+        } else if (slope_by_minute <= (-2)) {
+            arrow = "SingleDown";
+        } else if (slope_by_minute <= (-1)) {
+            arrow = "FortyFiveDown";
+        } else if (slope_by_minute <= (1)) {
+            arrow = "Flat";
+        } else if (slope_by_minute <= (2)) {
+            arrow = "FortyFiveUp";
+        } else if (slope_by_minute <= (3.5)) {
+            arrow = "SingleUp";
+        } else if (slope_by_minute <= (40)) {
+            arrow = "DoubleUp";
+        }
+        aapsLogger.error(LTag.GLUCOSE, "Direction set to: " + arrow);
+        return arrow;
+    }
 }
