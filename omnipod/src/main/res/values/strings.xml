@@ -122,6 +122,7 @@
     <string name="omnipod_init_pod_set_basal_profile">Set Basal Profile</string>
     <string name="omnipod_deactivate_pod_cancel_delivery">Cancel Delivery</string>
     <string name="omnipod_deactivate_pod_deactivate_pod">Deactivate Pod</string>
+    <string name="omnipod_history_new_pod_serial">New pod serial: %s</string>
 
     <!-- Omnipod - Base -->
     <string name="omnipod_dash_name" translatable="false">Omnipod Dash</string>
