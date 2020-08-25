@@ -1891,6 +1891,36 @@ public class DatabaseHelper extends OrmLiteSqliteOpenHelper {
     }
 
 
+    public List<OmnipodHistoryRecord> getFilteredOmnipodHistoryRecords(long predecessor, long limit, String podSerial, boolean ascending) {
+        try {
+            Dao<OmnipodHistoryRecord, Long> daoPodHistory = getDaoPodHistory();
+            List<OmnipodHistoryRecord> podHistories;
+            QueryBuilder<OmnipodHistoryRecord, Long> queryBuilder = daoPodHistory.queryBuilder();
+            queryBuilder.orderBy("date", ascending);
+            queryBuilder.limit(limit);
+            if (predecessor > 0 || podSerial != null) {
+                Where where = queryBuilder.where();
+                if (predecessor > 0) {
+                    if (ascending) {
+                        where.gt("date", predecessor);
+                    } else {
+                        where.lt("date", predecessor);
+                    }
+                }
+                if (podSerial != null) {
+                    where.eq("podSerial", podSerial);
+                }
+            }
+            PreparedQuery<OmnipodHistoryRecord> preparedQuery = queryBuilder.prepare();
+            podHistories = daoPodHistory.query(preparedQuery);
+            return podHistories;
+        } catch (SQLException e) {
+            aapsLogger.error("Unhandled exception", e);
+        }
+        return new ArrayList<>();
+    }
+
+
     // Copied from xDrip+
     String calculateDirection(BgReading bgReading) {
         // Rework to get bgreaings from internal DB and calculate on that base

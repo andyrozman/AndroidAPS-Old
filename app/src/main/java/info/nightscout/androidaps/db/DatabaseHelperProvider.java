@@ -3,6 +3,7 @@ package info.nightscout.androidaps.db;
 import com.j256.ormlite.dao.CloseableIterator;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.sql.SQLException;
 import java.util.List;
@@ -97,6 +98,10 @@ public class DatabaseHelperProvider implements DatabaseHelperInterface {
 
     @NotNull @Override public List<OmnipodHistoryRecord> getAllOmnipodHistoryRecordsFromTimestamp(long timestamp, boolean ascending) {
         return MainApp.getDbHelper().getAllOmnipodHistoryRecordsFromTimeStamp(timestamp, ascending);
+    }
+
+    @NotNull @Override public List<OmnipodHistoryRecord> getFilteredOmnipodHistoryRecords(long until, long limit, @Nullable String podSerial, boolean ascending) {
+        return MainApp.getDbHelper().getFilteredOmnipodHistoryRecords(until,limit,podSerial,ascending);
     }
 
     @NotNull @Override public List<TDD> getTDDsForLastXDays(int days) {
