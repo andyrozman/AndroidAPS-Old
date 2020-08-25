@@ -91,6 +91,7 @@ dependencies {
     implementation 'net.danlew:android.joda:2.10.6'
     implementation "com.google.code.gson:gson:2.8.6"
     implementation(name: "com.atech-software.android.library.wizardpager-1.1.4", ext: "aar")
+    implementation "androidx.paging:paging-runtime-ktx:${paging_version}"
     // Omnipod - end
 
     implementation "com.google.dagger:dagger-android:$dagger_version"

@@ -283,6 +283,7 @@ dependencies {
     implementation 'com.madgag.spongycastle:core:1.58.0.0'
     // Omnipod wizard
     implementation(name: "com.atech-software.android.library.wizardpager-1.1.4", ext: "aar")
+    implementation "androidx.paging:paging-runtime-ktx:${paging_version}"
     implementation("com.google.android:flexbox:0.3.0") {
         exclude group: "com.android.support"
     }
